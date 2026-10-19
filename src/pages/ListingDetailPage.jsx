@@ -2,13 +2,23 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar.jsx'
 import ChatbotWidget from '../components/ChatbotWidget.jsx'
-import { getListing } from '../api/listings.js'
+import { getListing, getListingReviews } from '../api/listings.js'
+import { createBooking } from '../api/bookings.js'
 
 export default function ListingDetailPage() {
   const { id } = useParams()
   const [listing, setListing] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reviews, setReviews] = useState([])
+  const [bookingBusy, setBookingBusy] = useState(false)
+  const [bookingError, setBookingError] = useState('')
+  const [bookingNotice, setBookingNotice] = useState('')
+  const [bookingUser, setBookingUser] = useState(null)
+
+  useEffect(() => {
+    try { setBookingUser(JSON.parse(localStorage.getItem('user') || 'null')) } catch { setBookingUser(null) }
+  }, [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -27,15 +37,51 @@ export default function ListingDetailPage() {
     return () => controller.abort()
   }, [id])
 
+  useEffect(() => {
+    if (!listing?.id) return undefined
+    const controller = new AbortController()
+    getListingReviews(listing.id, controller.signal).then(setReviews).catch(() => {})
+    return () => controller.abort()
+  }, [listing?.id])
+
+  async function handleBookingSubmit(event) {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    setBookingBusy(true)
+    setBookingError('')
+    setBookingNotice('')
+    try {
+      await createBooking(listing.id, { startDate: data.get('startDate'), endDate: data.get('endDate'), rooms: Number(data.get('rooms')), message: data.get('message') })
+      setBookingNotice('Request sent. You can follow its status from My bookings.')
+      form.reset()
+    } catch (requestError) {
+      setBookingError(requestError.response?.data?.message || 'Could not send the booking request.')
+    } finally {
+      setBookingBusy(false)
+    }
+  }
+
   const locationText = listing
     ? [listing.location?.area, listing.location?.city].filter(Boolean).join(', ')
     : ''
   const photos = listing?.photos?.length ? listing.photos : []
   const coordinates = listing?.location?.coordinates
-  const mapQuery = listing?.location?.address || locationText
-  const mapUrl = Number.isFinite(coordinates?.lat) && Number.isFinite(coordinates?.lng)
-    ? 'https://www.google.com/maps/search/?api=1&query=' + coordinates.lat + ',' + coordinates.lng
-    : mapQuery ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(mapQuery) : ''
+  const hasCoordinates = Number.isFinite(coordinates?.lat) && Number.isFinite(coordinates?.lng)
+  const mapQuery = hasCoordinates
+    ? `${coordinates.lat},${coordinates.lng}`
+    : [listing?.location?.address, locationText, 'Kerala, India'].filter(Boolean).join(', ')
+  const campusQuery = 'College of Engineering Chengannur, Chengannur, Kerala, India'
+  const mapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_API_KEY?.trim()
+  const mapsUrl = new URL('https://www.google.com/maps/dir/')
+  mapsUrl.searchParams.set('api', '1')
+  mapsUrl.searchParams.set('origin', campusQuery)
+  mapsUrl.searchParams.set('destination', mapQuery)
+  const mapEmbedUrl = mapQuery && mapsApiKey
+    ? `https://www.google.com/maps/embed/v1/directions?key=${encodeURIComponent(mapsApiKey)}&origin=${encodeURIComponent(campusQuery)}&destination=${encodeURIComponent(mapQuery)}&mode=driving`
+    : mapQuery
+      ? `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`
+      : ''
 
   return (
     <>
@@ -71,7 +117,20 @@ export default function ListingDetailPage() {
                   <span className="section-kicker">THE NEIGHBORHOOD</span>
                   <h2>Location</h2>
                   <p>{listing.location?.address ? listing.location.address + ', ' : ''}{locationText || 'Location not provided'}</p>
-                  {mapUrl && <a className="detail-map-link" href={mapUrl} target="_blank" rel="noreferrer">Open location in Google Maps ↗</a>}
+                  {mapEmbedUrl && <div className="detail-map-wrap">
+                    <iframe
+                      className="detail-map-frame"
+                      title={mapsApiKey ? `Driving directions from College of Engineering Chengannur to ${listing.name}` : `Map showing ${listing.name}`}
+                      src={mapEmbedUrl}
+                      loading="lazy"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
+                    {mapsApiKey
+                      ? <p className="detail-map-caption">The embedded route shows the driving distance and estimated travel time from College of Engineering Chengannur.</p>
+                      : <p className="detail-map-caption">Map preview uses the listed address. Add a restricted Google Maps Embed API key to show directions and route distance from the college.</p>}
+                    <a className="detail-map-link" href={mapsUrl.toString()} target="_blank" rel="noreferrer">Open directions in Google Maps ↗</a>
+                  </div>}
                 </section>
                 {listing.ownerDetails && (listing.ownerDetails.name || listing.ownerDetails.phones?.length > 0) && (
                   <section className="detail-section owner-contact-section">
@@ -81,7 +140,13 @@ export default function ListingDetailPage() {
                     {listing.ownerDetails.phones?.length
                       ? <div className="owner-phone-list">{listing.ownerDetails.phones.map((phone, index) => {
                           const callable = phone.replace(/[^+\d]/g, '')
-                          return <a className="button call-owner-button" key={phone + index} href={'tel:' + callable}><span aria-hidden="true">☎</span> Call {phone}</a>
+                          const digits = phone.replace(/\D/g, '')
+                          const whatsappNumber = digits.length === 10 ? '91' + digits : digits.startsWith('0') && digits.length === 11 ? '91' + digits.slice(1) : digits
+                          const whatsappMessage = `Hi, I found ${listing.name} on HousingRadar. Is it currently available?`
+                          return <div className="owner-contact-actions" key={phone + index}>
+                            <a className="button call-owner-button" href={'tel:' + callable}><span aria-hidden="true">☎</span> Call {phone}</a>
+                            {/^\d{10,15}$/.test(whatsappNumber) && <a className="button whatsapp-button" href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappMessage)}`} target="_blank" rel="noreferrer">Message on WhatsApp ↗</a>}
+                          </div>
                         })}</div>
                       : <p>Phone contact was not provided.</p>}
                   </section>
@@ -95,8 +160,29 @@ export default function ListingDetailPage() {
                 <div className="detail-room-count"><strong>{listing.availableRooms ?? 0}</strong><span><b>Rooms listed as available</b><small>{listing.isDemo ? 'Sample count · not live availability' : 'Ask the owner to confirm before booking'}</small></span></div>
                 <hr />
                 <p className="detail-price-help">Availability and rates are provided by the property owner.</p>
+                {listing.owner && <div className="detail-booking-area">
+                  <h2>Request these rooms</h2>
+                  {bookingUser?.role === 'student'
+                    ? <form className="detail-booking-form" onSubmit={handleBookingSubmit}>
+                        <label><span>From</span><input name="startDate" type="date" required min={dateAfter(1)} defaultValue={dateAfter(1)} /></label>
+                        <label><span>Until</span><input name="endDate" type="date" required min={dateAfter(2)} defaultValue={dateAfter(listing.priceUnit === 'month' ? 31 : 2)} /></label>
+                        <label><span>Rooms requested</span><input name="rooms" type="number" required min="1" max="20" defaultValue="1" /></label>
+                        <label><span>Message <small>Optional</small></span><textarea name="message" rows="2" maxLength="1000" placeholder="Add a question for the owner" /></label>
+                        {bookingError && <p className="booking-message error" role="alert">{bookingError}</p>}
+                        {bookingNotice && <p className="booking-message success" role="status">{bookingNotice} <Link to="/student/bookings">Open bookings</Link></p>}
+                        <button className="button booking-submit" type="submit" disabled={bookingBusy || !listing.available}>{bookingBusy ? 'Sending…' : listing.available ? 'Send booking request' : 'No rooms currently available'}</button>
+                      </form>
+                    : bookingUser?.role === 'owner'
+                      ? <p className="detail-price-help">Sign in with a student account to request a stay.</p>
+                      : <p className="detail-price-help"><Link to="/login">Sign in as a student</Link> to request a stay.</p>}
+                </div>}
               </aside>
             </div>
+            <section className="detail-section detail-reviews-section">
+              <span className="section-kicker">GUEST FEEDBACK</span>
+              <h2>Reviews {reviews.length > 0 && <small>({reviews.length})</small>}</h2>
+              {reviews.length ? <div className="listing-reviews">{reviews.map(review => <article className="listing-review" key={review.id}><div><strong>{review.student?.name || 'Verified guest'}</strong><span>{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)} · {new Date(review.createdAt).toLocaleDateString('en-IN')}</span></div><p>{review.comment || 'No written comment.'}</p><small>Verified stay</small></article>)}</div> : <p>No verified reviews yet. Guests can review after a completed stay.</p>}
+            </section>
           </>
         )}
       </main>
@@ -108,3 +194,4 @@ export default function ListingDetailPage() {
 
 function PinIcon() { return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.25 8.33c0 4.17-6.25 9.17-6.25 9.17S3.75 12.5 3.75 8.33a6.25 6.25 0 1 1 12.5 0Z" stroke="currentColor" strokeWidth="1.5"/><circle cx="10" cy="8.33" r="2.08" stroke="currentColor" strokeWidth="1.5"/></svg> }
 function RadarIcon() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5.64 5.64a9 9 0 1 0 12.72 0M8.47 8.47a5 5 0 1 0 7.06 0M12 12l6.36-6.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="18.5" cy="5.5" r="1.5" fill="currentColor"/></svg> }
+function dateAfter(days) { const date = new Date(); date.setDate(date.getDate() + days); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }

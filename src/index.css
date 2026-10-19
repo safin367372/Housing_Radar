@@ -109,6 +109,7 @@ button { cursor: pointer; }
 .listing-card { overflow: hidden; border: 1px solid #deded3; border-radius: 2px; background: #fbfaf5; transition: border-color .2s, transform .2s; }
 .listing-card:hover { transform: translateY(-2px); border-color: #9fae9d; }
 .listing-image-wrap { height: 169px; position: relative; background: #e8e6dc; }
+.listing-image-link { display: block; width: 100%; height: 100%; }
 .listing-image { width: 100%; height: 100%; object-fit: cover; filter: saturate(.78); }
 .availability { position: absolute; top: 11px; left: 11px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #d8e1d5; background: #f6f7ee; color: #365946; font-size: 8px; font-weight: 700; }
 .availability i { width: 6px; height: 6px; border-radius: 50%; background: #54845c; }
@@ -117,6 +118,12 @@ button { cursor: pointer; }
 .save-button { position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #e0ded3; border-radius: 50%; background: #f7f5eef2; color: #575b50; }
 .save-button svg { width: 14px; height: 14px; }
 .listing-content { padding: 14px 14px 12px; }
+.listing-heading-actions { display: flex; align-items: center; gap: 16px; }
+.saved-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid #d9ded4; border-radius: 3px; background: #fbfaf5; color: #596056; font-size: 9px; }
+.saved-toggle svg { width: 13px; height: 13px; }
+.saved-toggle > span { min-width: 15px; padding: 2px 4px; border-radius: 8px; background: #e9ebe2; text-align: center; }
+.saved-toggle.selected, .save-button.is-saved { color: #a54e45; }
+.listing-content { display: block; }
 .listing-title-row { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
 .eyebrow { color: #777b70; font-size: 7px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
 .listing-title-row h3 { margin: 5px 0 0; color: #2c3028; font: 600 15px/1.2 'Fraunces', Georgia, serif; }
@@ -139,6 +146,18 @@ button { cursor: pointer; }
 .map-banner span { color: #777b71; font-size: 8px; }
 .map-button { margin-left: auto; border: 0; background: transparent; color: var(--green); font-size: 9px; font-weight: 700; white-space: nowrap; }
 .map-button span { display: inline-block; margin-left: 6px; font-size: 14px; }
+.stay-map-panel { margin-top: 12px; padding: 18px; border: 1px solid #d9ded4; background: #fbfaf5; }
+.stay-map-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+.stay-map-heading h3 { margin: 5px 0 0; color: #34392f; font: 600 19px 'Fraunces', Georgia, serif; }
+.stay-map-heading > span, .stay-map-note, .stay-map-message, .stay-map-empty { color: #777b71; font-size: 10px; line-height: 1.6; }
+.stay-map-note { margin: 0 0 10px; }
+.stay-map { width: 100%; height: 430px; border: 1px solid #deded3; z-index: 0; }
+.stay-map-empty { margin: 10px 0 0; }
+.stay-map-marker { border: 2px solid #fbfaf5; border-radius: 50% 50% 50% 0; background: #47604e; box-shadow: 0 2px 7px #18201655; transform: rotate(-45deg); }
+.stay-map-marker span { display: block; width: 6px; height: 6px; margin: 7px; border-radius: 50%; background: #fbfaf5; }
+.stay-map .leaflet-popup-content-wrapper { border-radius: 3px; }
+.stay-map .leaflet-popup-content { font: 11px/1.6 'DM Sans', sans-serif; }
+.stay-map .leaflet-popup-content a { color: #365946; }
 
 .how-section { padding: 48px 24px 54px; border-top: 1px solid #e2e1d7; background: #f1f0e8; text-align: center; }
 .how-section h2 { margin: 10px 0 30px; }
@@ -213,7 +232,8 @@ button { cursor: pointer; }
   .search-button span { display: none; }
   .field-icon { width: 31px; height: 31px; }
   .field-copy input { font-size: 9px; }
-  .listing-heading { margin-bottom: 13px; }
+  .listing-heading { margin-bottom: 13px; gap: 9px; flex-wrap: wrap; }
+  .listing-heading-actions { width: 100%; justify-content: space-between; }
   .filter-button { padding: 7px 9px; font-size: 9px; }
   .listing-grid { grid-template-columns: 1fr; gap: 12px; }
   .listing-card { display: grid; grid-template-columns: 37% 1fr; min-height: 155px; }
@@ -236,6 +256,9 @@ button { cursor: pointer; }
   .map-banner b { font-size: 9px; }
   .map-banner span { font-size: 7px; line-height: 1.5; }
   .map-button { align-self: center; font-size: 8px; }
+  .stay-map-panel { padding: 12px; }
+  .stay-map-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .stay-map { height: 350px; }
   .how-section { padding: 39px 21px; }
   .how-section h2 { line-height: 1.3; }
   .steps-grid { max-width: 340px; grid-template-columns: 1fr; gap: 19px; }
@@ -371,6 +394,9 @@ button { cursor: pointer; }
 .amenity-list li { display: flex; gap: 8px; align-items: center; color: #555a50; font-size: 11px; }
 .amenity-list li span { color: var(--green); }
 .detail-map-link { display: inline-block; margin-top: 12px; color: var(--green); font-size: 11px; font-weight: 600; }
+.detail-map-wrap { margin-top: 16px; }
+.detail-map-frame { display: block; width: 100%; min-height: 280px; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 3px; background: #ecece5; }
+.detail-map-caption { margin-top: 8px !important; color: #85877e !important; font-size: 9px !important; line-height: 1.6 !important; }
 .detail-price-card { position: sticky; top: 90px; padding: 20px; border: 1px solid var(--line); background: #fbfaf5; }
 .detail-price { margin-top: 11px; font: 600 27px 'Fraunces', Georgia, serif; }
 .detail-price small { color: var(--muted); font: 400 11px 'DM Sans', sans-serif; }
@@ -388,10 +414,143 @@ button { cursor: pointer; }
 
 .owner-contact-name { margin-bottom: 12px !important; color: var(--ink) !important; font-weight: 600; }
 .owner-phone-list { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+.owner-contact-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .call-owner-button { width: fit-content; padding: 10px 13px; font-size: 10px; }
 .call-owner-button span { font-size: 13px; }
+.whatsapp-button { width: fit-content; padding: 10px 13px; border-color: #4d7859; background: #4d7859; font-size: 10px; }
+.whatsapp-button:hover { border-color: #365c40; background: #365c40; }
 .detail-sample-note { max-width: 275px; color: #87583e; border-color: #e5d6c7; background: #faf2e9; line-height: 1.5; }
-@media (max-width: 620px) { .detail-sample-note { max-width: 100%; } .call-owner-button { width: 100%; } }
+@media (max-width: 620px) { .detail-sample-note { max-width: 100%; } .owner-contact-actions { flex: 1 1 100%; } .call-owner-button, .whatsapp-button { width: 100%; } }
+
+.detail-booking-area { margin-top: 18px; padding-top: 17px; border-top: 1px solid var(--line); }
+.detail-booking-area h2 { margin: 0 0 12px; font: 600 16px 'Fraunces', Georgia, serif; }
+.detail-booking-form { display: grid; gap: 10px; }
+.detail-booking-form label, .booking-action-form label { display: grid; gap: 5px; color: #656a60; font-size: 10px; }
+.detail-booking-form label > span, .booking-action-form label > span { font-weight: 600; }
+.detail-booking-form input, .detail-booking-form textarea, .booking-action-form input, .booking-action-form textarea, .booking-action-form select { width: 100%; padding: 9px; border: 1px solid #dcded4; border-radius: 3px; background: #fffefa; color: var(--ink); font-size: 11px; }
+.booking-submit { width: fit-content; padding: 10px 13px; font-size: 10px; }
+.booking-submit:disabled { opacity: .55; cursor: not-allowed; }
+.detail-reviews-section { margin-top: 32px; }
+.detail-reviews-section h2 { margin: 8px 0 14px; }
+.detail-reviews-section h2 small { color: var(--muted); font: 400 13px 'DM Sans', sans-serif; }
+.listing-reviews { display: grid; gap: 12px; }
+.listing-review { padding: 15px; border: 1px solid var(--line); background: #fbfaf5; }
+.listing-review > div { display: flex; justify-content: space-between; gap: 12px; color: #34392f; font-size: 11px; }
+.listing-review > div span, .owner-feedback-card header span { color: #9b6b30; letter-spacing: 1px; }
+.listing-review p { margin: 10px 0 7px; color: #62665d; font-size: 12px; line-height: 1.6; }
+.listing-review small { color: #81857b; font-size: 9px; }
+
+.booking-page { max-width: 1000px; min-height: 60vh; margin: 0 auto; padding: 44px 28px 70px; }
+.booking-page-heading { margin-bottom: 22px; }
+.booking-page-heading h1 { margin: 8px 0; font: 600 34px 'Fraunces', Georgia, serif; }
+.booking-page-heading p, .booking-empty p, .booking-state { color: #777b71; font-size: 12px; line-height: 1.6; }
+.booking-list { display: grid; gap: 14px; }
+.booking-card, .booking-empty { padding: 20px; border: 1px solid var(--line); background: #fbfaf5; }
+.booking-card-top { display: flex; align-items: start; justify-content: space-between; gap: 15px; }
+.booking-card h2 { margin: 5px 0; color: var(--ink); font: 600 20px 'Fraunces', Georgia, serif; }
+.booking-card-top p, .booking-student-note, .booking-owner-note { color: #777b71; font-size: 11px; line-height: 1.6; }
+.booking-status { display: inline-block; padding: 5px 8px; border-radius: 2px; background: #ecefe8; color: #52654f; font-size: 9px; font-weight: 700; text-transform: capitalize; white-space: nowrap; }
+.status-pending { background: #f8f0dd; color: #80601b; }
+.status-confirmed { background: #e4f0e5; color: #35623d; }
+.status-rejected, .status-cancelled { background: #f4e7e2; color: #8b4a3d; }
+.status-completed { background: #e9e9f2; color: #565a7d; }
+.booking-message { margin: 10px 0; font-size: 11px; }
+.booking-message.error { color: #9a453b; }
+.booking-message.success { color: #35623d; }
+.booking-message a { text-decoration: underline; }
+.booking-empty h2 { margin: 0; font: 600 21px 'Fraunces', Georgia, serif; }
+.booking-empty .button { margin-top: 10px; }
+.booking-action-form { display: grid; gap: 11px; margin-top: 13px; padding-top: 14px; border-top: 1px solid #e6e5dc; }
+.booking-action-form h3 { margin: 0; font: 600 15px 'Fraunces', Georgia, serif; }
+.booking-form-row { display: grid; grid-template-columns: 180px 1fr; gap: 12px; }
+.booking-comment-field { min-width: 0; }
+.complaint-details { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e6e5dc; }
+.complaint-details summary { color: var(--green); cursor: pointer; font-size: 11px; font-weight: 600; }
+.booking-secondary-button { padding: 7px 10px; border: 1px solid #d7d6cc; background: transparent; color: #686c63; font-size: 10px; }
+.submitted-review { display: grid; gap: 6px; margin-top: 12px; padding: 12px; background: #f0f0e9; font-size: 11px; }
+.submitted-review span { color: #65695f; }
+.student-complaint-update { margin-top: 12px; padding: 12px; border-left: 2px solid #7a8b71; background: #f0f1e9; font-size: 10px; }
+.student-complaint-update p { margin: 6px 0; color: #666b61; }
+.student-complaint-update small { color: #4e5c4d; line-height: 1.5; }
+
+.owner-guest-management { display: grid; gap: 18px; margin-top: 25px; }
+.owner-management-section { padding: 20px; border: 1px solid var(--line); background: #fbfaf5; }
+.owner-management-section .owner-listings-heading { margin-bottom: 14px; }
+.owner-management-section .owner-listings-heading h2 { font-size: 22px; }
+.owner-management-empty { margin: 0; color: #7a7d74; font-size: 11px; line-height: 1.65; }
+.owner-occupancy-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 13px; }
+.owner-occupancy-summary > div { display: flex; gap: 8px; padding: 8px 10px; border: 1px solid #dce2d7; background: #f1f4ed; font-size: 10px; }
+.owner-occupancy-summary span { color: #52664f; }
+.owner-booking-row { display: flex; justify-content: space-between; gap: 18px; padding: 14px 0; border-top: 1px solid #e7e6dc; }
+.owner-booking-main h3 { margin: 7px 0 4px; color: #34392f; font: 600 15px 'Fraunces', Georgia, serif; }
+.owner-booking-main p, .owner-booking-main small { margin: 4px 0; color: #73776d; font-size: 10px; line-height: 1.55; }
+.owner-booking-message { color: #53584f !important; }
+.owner-booking-actions { display: flex; flex-shrink: 0; align-items: center; gap: 7px; }
+.owner-completion-note { max-width: 150px; color: #777b71; font-size: 9px; line-height: 1.5; }
+.owner-accept-button { padding: 8px 10px; border: 1px solid #456b50; background: #456b50; color: white; font-size: 9px; font-weight: 600; }
+.owner-accept-button:disabled { opacity: .6; }
+.owner-feedback-list, .owner-complaint-list { display: grid; gap: 10px; }
+.owner-feedback-card, .owner-complaint-card { padding: 13px; border: 1px solid #e2e2d8; background: #fffefa; }
+.owner-feedback-card header, .owner-complaint-card header { display: flex; align-items: start; justify-content: space-between; gap: 12px; font-size: 11px; }
+.owner-feedback-card p, .owner-complaint-card > p { margin: 9px 0; color: #62665d; font-size: 11px; line-height: 1.6; }
+.owner-feedback-card small, .owner-complaint-card header small { display: block; margin-top: 5px; color: #808379; font-size: 9px; }
+.owner-complaint-card label { display: grid; gap: 6px; margin-top: 12px; color: #656a60; font-size: 10px; }
+.owner-complaint-card textarea { width: 100%; padding: 9px; border: 1px solid #dcded4; background: #fffefa; font: 11px 'DM Sans', sans-serif; }
+.owner-complaint-controls { display: flex; justify-content: flex-end; gap: 8px; margin-top: 9px; }
+.owner-complaint-controls select { padding: 7px; border: 1px solid #dcded4; background: #fffefa; color: #555b51; font-size: 10px; text-transform: capitalize; }
+.complaint-status { padding: 5px 7px; background: #f6efdc; color: #80601b; font-size: 9px; text-transform: capitalize; white-space: nowrap; }
+.complaint-resolved { background: #e4f0e5; color: #35623d; }
+.complaint-in_review { background: #e9e9f2; color: #565a7d; }
+
+.listing-management-page { width: min(1060px, 100%); min-height: 60vh; margin: 0 auto; padding: 30px 28px 72px; }
+.management-back { margin-bottom: 20px; font-size: 10px; }
+.management-back a { color: #687467; }
+.management-back a:hover { color: var(--green); text-decoration: underline; }
+.listing-management-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 22px; padding: 20px; border: 1px solid var(--line); background: #fbfaf5; }
+.listing-management-heading h1 { margin: 7px 0 5px; font: 600 30px 'Fraunces', Georgia, serif; }
+.listing-management-heading p { margin: 0; color: #777b71; font-size: 11px; }
+.management-availability { min-width: 115px; display: grid; justify-items: center; gap: 2px; padding: 12px; border: 1px solid #dce2d7; background: #f1f4ed; }
+.management-availability span, .management-occupancy b { color: var(--green); font: 600 25px 'Fraunces', Georgia, serif; }
+.management-availability small, .management-occupancy span { color: #73776d; font-size: 9px; }
+.management-tabs { display: flex; gap: 5px; margin-bottom: 16px; border-bottom: 1px solid #deded3; }
+.management-tabs button { display: flex; align-items: center; gap: 8px; margin-bottom: -1px; padding: 11px 13px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #73776d; font: 500 11px 'DM Sans', sans-serif; cursor: pointer; }
+.management-tabs button.active { border-bottom-color: var(--green); color: var(--green-dark); font-weight: 700; }
+.management-tabs button > span { min-width: 17px; height: 17px; display: grid; place-items: center; padding: 0 4px; border-radius: 9px; background: #eceee7; color: #5d6859; font-size: 8px; }
+.listing-management-section { padding: 19px; border: 1px solid var(--line); background: #fbfaf5; }
+.management-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; }
+.management-section-heading h2 { margin: 5px 0 0; font: 600 22px 'Fraunces', Georgia, serif; }
+.management-occupancy { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 1px solid #dce2d7; background: #f1f4ed; }
+.management-occupancy b { font-size: 18px; }
+.management-empty-state { padding: 24px 12px; border: 1px dashed #d6d8cd; color: #777b71; font-size: 11px; text-align: center; }
+.management-record-list { margin-top: 12px; }
+.listing-management-page .owner-management-empty { margin-bottom: 14px; }
+.owner-listing-manage { padding: 6px 9px; border: 1px solid #cad4c8; border-radius: 3px; background: #e9eee7; color: #435b48; font-size: 9px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.owner-listing-manage:hover { background: #dfe7dc; }
+.owner-complaint-card header > div { min-width: 0; }
+.owner-complaint-card header > div b { text-transform: capitalize; }
+
+@media (max-width: 620px) {
+  .booking-page { padding: 30px 18px 50px; }
+  .booking-page-heading h1 { font-size: 29px; }
+  .booking-card, .booking-empty, .owner-management-section { padding: 14px; }
+  .booking-card-top { flex-direction: column; }
+  .booking-form-row { grid-template-columns: 1fr; }
+  .owner-booking-row { flex-direction: column; }
+  .listing-management-page { padding: 28px 17px 50px; }
+  .listing-management-heading { align-items: flex-start; padding: 15px; }
+  .listing-management-heading h1 { font-size: 25px; }
+  .listing-management-section { padding: 14px; }
+  .management-section-heading { align-items: flex-start; flex-direction: column; }
+  .management-section-heading h2 { font-size: 19px; }
+  .management-tabs { overflow-x: auto; }
+  .management-tabs button { flex: 0 0 auto; padding: 10px 9px; font-size: 10px; }
+  .owner-listing-row { align-items: flex-start; flex-wrap: wrap; }
+  .owner-listing-row > strong { margin-left: auto; }
+  .owner-listing-actions { width: 100%; flex-wrap: wrap; justify-content: flex-end; }
+  .owner-booking-actions { flex-wrap: wrap; }
+  .listing-review > div, .owner-feedback-card header, .owner-complaint-card header { flex-direction: column; }
+  .detail-booking-form .booking-submit, .booking-action-form .booking-submit { width: 100%; }
+}
 
 /* Compact search row and modal filter sheet */
 .filter-toolbar { display: flex; align-items: center; gap: 10px; margin: 27px 0 42px; padding: 9px; border: 1px solid #deded3; border-radius: 4px; background: #fbfaf5; }
@@ -511,6 +670,10 @@ button { cursor: pointer; }
 .owner-submit { width: 100%; min-height: 42px; margin-top: 2px; }
 .owner-submit > span { margin-left: auto; font-size: 16px; }
 .owner-submit:disabled { opacity: .65; cursor: wait; }
+.owner-form-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; align-items: center; }
+.owner-cancel-edit { min-height: 42px; padding: 0 13px; border: 1px solid #d7d8ce; border-radius: 3px; background: transparent; color: #62665d; font-size: 10px; font-weight: 600; }
+.owner-cancel-edit:hover { background: #f1f1e9; }
+.owner-cancel-edit:disabled { opacity: .6; cursor: wait; }
 .owner-form-note { margin: -4px 0 0; color: #87897f; font-size: 8px; text-align: center; }
 .owner-listings-section { padding: 18px; }
 .owner-listings-heading { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid #e7e6dc; }
@@ -530,6 +693,19 @@ button { cursor: pointer; }
 .owner-listing-info > span { overflow: hidden; color: #85877e; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .owner-listing-row > strong { flex: 0 0 auto; color: #30352d; font: 600 12px 'Fraunces', Georgia, serif; }
 .owner-listing-row > strong small { color: #85877e; font: 400 8px 'DM Sans', sans-serif; }
+.owner-listing-edit { flex: 0 0 auto; padding: 6px 9px; border: 1px solid #cad4c8; border-radius: 3px; background: #f6f7f1; color: #435b48; font-size: 9px; font-weight: 600; }
+.owner-listing-edit:hover { background: #e9eee7; }
+.owner-listing-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
+.owner-listing-actions button:disabled { opacity: .55; cursor: wait; }
+.owner-listing-toggle { padding: 6px 8px; border: 1px solid #d8d4c6; border-radius: 3px; background: #f7f5ed; color: #665d43; font-size: 9px; font-weight: 600; }
+.owner-listing-toggle:hover { background: #efecdf; }
+.owner-listing-delete { padding: 6px 8px; border: 1px solid #dfc8be; border-radius: 3px; background: #fbf5f1; color: #88513e; font-size: 9px; font-weight: 600; }
+.owner-listing-delete:hover { background: #f5e9e2; }
+.owner-listing-edit:focus-visible, .owner-listing-toggle:focus-visible, .owner-cancel-edit:focus-visible { outline: 2px solid #78907b; outline-offset: 2px; }
+.owner-listing-delete:focus-visible { outline: 2px solid #a66c55; outline-offset: 2px; }
+.owner-status-active, .owner-status-inactive { font-weight: 600; }
+.owner-status-active { color: #56704f !important; }
+.owner-status-inactive { color: #895744 !important; }
 .owner-browse-link { display: inline-block; margin-top: 14px; }
 .owner-browse-link span { margin-left: 4px; font-size: 14px; }
 @media (max-width: 800px) { .owner-dashboard-grid { grid-template-columns: minmax(0, 1fr); } .owner-listings-section { order: -1; } }

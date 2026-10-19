@@ -2,7 +2,7 @@
 
 HousingRadar is a responsive accommodation discovery web app. It helps people find hostels, PGs, hotels, and lodges, compare price and amenities, inspect property details, and contact an owner. Property owners can register, sign in, publish a listing, and review their own listings.
 
-This repository contains the React/Vite frontend and the Express/MongoDB API. The larger project plan also includes timed booking requests, verified reviews, notifications, Google Maps integration, and a separate AI/RAG service; those are future work and are not implemented in this codebase yet.
+This repository contains the React/Vite frontend and the Express/MongoDB API. It supports owner-approved booking requests, room availability updates, verified post-stay reviews, and complaint handling. Notifications and the separate AI/RAG service remain future work.
 
 ## Contents
 
@@ -34,12 +34,21 @@ The project brief describes RoomRadar/HousingRadar as a student accommodation pl
 - Listing search by text and location, filters for type, price, price period, amenities, and availability, sorting, and pagination.
 - Detail pages with photos, address/location, amenities, room type, price, availability count, and owner phone links when present.
 - Owner dashboard for creating a listing and viewing the signed-in owner's listings.
+- Owner dashboard editing for listing details and current available-room count/status.
+- Owner-only listing deletion with a confirmation prompt.
+- Owner-controlled active/inactive visibility; inactive listings are hidden from public search and detail pages.
+- Student booking requests, owner approval/rejection, cancellation before a confirmed stay starts, and room-count updates on confirmation/completion.
+- Reviews restricted to completed bookings, with public verified reviews and recalculated listing ratings.
+- Complaint submission by booked students and owner response/status management.
+- Owner dashboard views for confirmed room occupancy, booking requests, property reviews, and user complaints.
+- Browser map view with pins for active listings that have coordinates.
+- Saved stays persisted per browser account.
 - Demo sample seeding and repeatable import of the supplied boys' accommodation workbook data.
 - A chatbot preview panel in the interface. It is not connected to an AI service.
 
 ### Not implemented yet
 
-See [Planned work](#planned-work). In particular, there is no booking lifecycle or actual reservation/slot locking, no review submission or verification, and no live availability synchronization. A displayed room count is listing data, not a reserved inventory system.
+See [Planned work](#planned-work). Booking confirmation updates available room counts, but the prototype does not allocate rooms against overlapping date ranges or send automatic notifications.
 
 ## Features implemented
 
@@ -51,8 +60,13 @@ See [Planned work](#planned-work). In particular, there is no booking lifecycle 
 - Sort by newest, price ascending/descending, or rating.
 - Select 4, 6, or 8 listings per page and navigate paginated results.
 - Open a listing detail page by clicking a listing card.
-- Open the supplied address/coordinates in Google Maps using a Maps search URL. This is a link-out, not an embedded map or distance calculation.
-- Sign up as a student and sign in; the student page currently reuses the public search experience and adds an account banner.
+- Open stay locations in an interactive map; listings need coordinates to appear as pins.
+- Save stays on this browser, with saved IDs separated by signed-in account.
+- Submit a booking request with dates, room count, and a message; track it under **My bookings**.
+- Cancel a pending request or a confirmed booking before its start date.
+- Leave one verified review after a confirmed booking is marked complete by its owner.
+- Submit complaints for confirmed or completed stays and view the owner's response/status.
+- Sign up as a student and sign in; the student page reuses the public search and adds an account banner.
 
 ### Owner experience
 
@@ -60,6 +74,8 @@ See [Planned work](#planned-work). In particular, there is no booking lifecycle 
 - Open a protected owner dashboard.
 - Create a listing with its name, property type, description, location, rate, room type, available room count, amenities, photo URLs, contact phone, and availability flag.
 - View the signed-in owner's own listing records.
+- Review and accept/decline booking requests; confirmation reserves rooms and completion returns them to availability.
+- See confirmed occupied-room totals by property, guest reviews, and complaints; update complaint status and send a response.
 
 ### Chat interface
 
@@ -67,17 +83,15 @@ The floating assistant button opens a preview panel. The message field is intent
 
 ## Planned work
 
-The following items are in the original project scope but are not implemented in the current code:
+The following items in the original scope remain incomplete:
 
-1. **Edit, delete, and update availability:** owner-only API and UI operations for existing listings, including changing room counts.
-2. **Bookings and slot holds:** student booking requests, atomic slot allocation, a hold-expiration timer, and owner approval/rejection. The original brief says booking screens are deferred until their design is finalized.
-3. **Verified reviews:** allow students to rate/review only after a completed booking; calculate and display real average ratings.
-4. **Notifications:** inform students and owners about booking state and availability changes.
-5. **Maps:** embedded Google Maps, geocoding, and distance from a configured campus or user-selected destination. Current details page only links out to Maps.
-6. **AI/RAG chatbot:** separate Spring Boot + Spring AI service using PostgreSQL/pgvector and Gemini or Ollama, with document retrieval, retrieval checks, and a safe fallback. The current widget is only a preview.
-7. **Vacancy automation agent:** planned service/agent to update vacancy data; no such integration exists yet.
-8. **Operational features:** password reset, email verification, image upload/storage, stronger session handling, production deployment configuration, and automated test coverage.
-9. **Data quality:** replace demo prices, amenities, photos, and room counts with verified owner-supplied information before presenting them as factual.
+1. **Notifications:** inform students and owners about booking state and complaint updates.
+2. **Date-aware room allocation:** current room counts are reserved on confirmation and released on completion/cancellation, but requests are not checked for overlapping dates and there is no timed hold or payment.
+3. **Maps improvements:** destination entry and per-stay route distance/time; current pins require owner-supplied coordinates.
+4. **AI/RAG chatbot:** separate Spring Boot + Spring AI service using PostgreSQL/pgvector and Gemini or Ollama, with document retrieval, retrieval checks, and a safe fallback. The current widget is only a preview.
+5. **Vacancy automation agent:** planned service/agent to update vacancy data; no such integration exists yet.
+6. **Operational features:** password reset, email verification, image upload/storage, stronger session handling, production deployment configuration, and automated test coverage.
+7. **Data quality:** replace demo prices, amenities, photos, and room counts with verified owner-supplied information before presenting them as factual.
 
 ## Technology stack
 
@@ -86,13 +100,14 @@ The following items are in the original project scope but are not implemented in
 | Frontend | React 19, Vite 7 | UI and local development/build tooling |
 | Routing | React Router 7 | Client-side page navigation and route guards |
 | Styling | CSS in `src/index.css`, Tailwind CSS 4 Vite plugin | Responsive page styling and utility CSS support |
+| Map | Leaflet, React Leaflet, OpenStreetMap tiles | Browser map with active stay markers |
 | HTTP client | Axios | Frontend requests to the REST API |
 | Backend | Node.js 20+, Express 5 | JSON REST API and middleware |
-| Database | MongoDB Atlas or local MongoDB, Mongoose 8 | Persistent users and listings |
+| Database | MongoDB Atlas or local MongoDB, Mongoose 8 | Persistent users, listings, bookings, reviews, and complaints |
 | Authentication | bcryptjs, jsonwebtoken | Password hashing and signed bearer tokens |
 | Middleware | cors, dotenv | Cross-origin configuration and environment loading |
 | Planned AI service | Spring Boot, Spring AI, PostgreSQL/pgvector, Gemini or Ollama | Retrieval-augmented chatbot (not in this repository yet) |
-| Planned maps | Google Maps Platform | Embedded maps and distance display (not implemented) |
+| Maps | Leaflet/OpenStreetMap; optional Google Maps Embed API | Public map pins and detail directions |
 
 The frontend and backend are separate npm projects with separate `package.json` files. The backend currently exposes a **REST API**, not GraphQL or gRPC.
 
@@ -244,9 +259,12 @@ The frontend defaults to `http://localhost:5000/api`. To use a different API URL
 
 ```dotenv
 VITE_API_URL=http://localhost:5000/api
+VITE_GOOGLE_MAPS_EMBED_API_KEY=your_restricted_maps_embed_key
 ```
 
-Restart Vite after changing environment variables.
+The stay detail page embeds a map using the listing address. When `VITE_GOOGLE_MAPS_EMBED_API_KEY` is set, the embed shows driving directions from College of Engineering Chengannur and Google displays route distance/travel time. Create and restrict a Google Maps Embed API key to your site's referrer and the Maps Embed API. The key is used in the browser and must be restricted; do not use a server-side secret here. Without a key, the page still shows a basic address map and an external directions link.
+
+Restart Vite after changing environment variables. Copy `.env.example` to `.env` in the project root to configure frontend values.
 
 ### 3. Optional: add listings
 
@@ -302,6 +320,32 @@ The public user shape is `{ id, name, email, role }`. Password hashes are never 
 | `GET` | `/api/listings/:id` | No | Fetch a listing by MongoDB ID or slug. |
 | `GET` | `/api/listings/mine` | Owner JWT | List the authenticated owner's listings (up to 100). |
 | `POST` | `/api/listings` | Owner JWT | Create a listing owned by the authenticated owner. |
+| `PUT` | `/api/listings/:id` | Owner JWT | Update an owned listing's details and current availability. |
+| `DELETE` | `/api/listings/:id` | Owner JWT | Delete an owned listing. |
+| `PATCH` | `/api/listings/:id/status` | Owner JWT | Set `{ "isActive": true }` or `{ "isActive": false }` for an owned listing. |
+| `GET` | `/api/listings/:listingId/reviews` | No | List verified reviews for one stay. |
+
+### Bookings, reviews, and complaints
+
+Student JWT required:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/bookings/listings/:listingId` | Request rooms for a date range. |
+| `GET` | `/api/bookings/mine` | View requests, reviews, and complaint responses. |
+| `PATCH` | `/api/bookings/:id/cancel` | Cancel a pending request or confirmed booking before it starts. |
+| `POST` | `/api/bookings/:bookingId/reviews` | Leave one review after the owner marks the stay complete. |
+| `POST` | `/api/bookings/:bookingId/complaints` | Report an issue on a confirmed or completed booking. |
+
+Owner JWT required:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/owner/bookings` | View booking requests and occupied-room totals. |
+| `PATCH` | `/api/owner/bookings/:id` | Confirm/reject a request or mark an ended stay complete. |
+| `GET` | `/api/owner/reviews` | View reviews for owned properties. |
+| `GET` | `/api/owner/complaints` | View booked guests' complaints. |
+| `PATCH` | `/api/owner/complaints/:id` | Update complaint status and owner response. |
 
 `GET /api/listings` query parameters:
 
@@ -345,12 +389,20 @@ Create listing request fields include `name`, `propertyType`, `description`, `lo
 - `price`, `priceUnit` (`night` or `month`), `roomType`.
 - `amenities`: string array; `photos`: URL string array.
 - `available`, `availableRooms`.
-- `rating`, `reviewCount` (fields exist, but review functionality is not implemented).
+- `isActive`: whether the listing is publicly visible; owners can deactivate it during maintenance.
+- `rating`, `reviewCount` (recalculated when a verified review is submitted).
 - `owner`: reference to a user, null for imported/demo records.
 - `ownerDetails`: optional public name and phone list.
 - `sourceKey`: sparse unique key used by workbook import.
 - `isDemo`: identifies sample or placeholder listing data.
 - `createdAt`, `updatedAt`: Mongoose timestamps.
+
+### Booking, Review, and Complaint
+
+- A booking links a student, owner, and listing; records requested rooms, stay dates, and a status (`pending`, `confirmed`, `rejected`, `completed`, or `cancelled`).
+- Owner confirmation decrements the listing's available-room count. Completion after the end date or student cancellation before the start date releases those rooms.
+- A review links to one completed booking; a unique booking index prevents duplicate reviews.
+- A complaint links to a confirmed or completed booking and stores its category, message, status, and owner response.
 
 ## Accommodation data and demo records
 
@@ -366,19 +418,16 @@ Imported records are keyed by their workbook source row through `sourceKey`, so 
 - JWT and user information are currently stored in `localStorage`; this is convenient for a prototype but is exposed to JavaScript running in the page. Review session storage and XSS protections before production use.
 - CORS is restricted to configured origins. Set `CLIENT_ORIGINS` to the deployed frontend origin(s) in production.
 - Listing photos are currently external URLs. There is no upload service or image moderation.
-- Listing availability and room counts are manually supplied fields; they are not locked or decremented by bookings.
+- Booking confirmation updates room counts, but availability is not allocated against overlapping date ranges and there is no payment or automatic expiry of pending requests.
 - Demo records may show generated prices, photos, amenities, and room counts. Treat them as samples, not verified claims.
-- There is no password reset/email verification, booking transaction, review verification, notification delivery, embedded map, or chatbot backend yet.
+- There is no password reset/email verification, notification delivery, or chatbot backend yet. Booking updates span multiple MongoDB documents without a transaction, so production use needs stronger transaction handling and automated coverage.
 
 ## Suggested implementation order
 
-1. Add owner edit/delete and vacancy update operations with ownership checks.
-2. Finalize booking/slot UX, then implement booking records, atomic holds, expiration, and owner decisions.
-3. Add verified post-booking reviews and calculate listing ratings from persisted reviews.
-4. Add notification events and a delivery channel.
-5. Add real Maps integration and destination distance calculations.
-6. Implement and connect the Spring AI RAG service; replace the preview chatbot panel with working chat.
-7. Add integration/UI tests, deployment configuration, and production data validation.
+1. Add booking notifications and a destination field for map routes.
+2. Add date-aware room allocation, transactional inventory updates, and automated test coverage.
+3. Implement and connect the Spring AI RAG service; replace the preview chatbot panel with working chat.
+4. Add password recovery, email verification, image uploads, deployment configuration, and production data validation.
 
 ---
 

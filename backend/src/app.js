@@ -2,6 +2,8 @@ import cors from 'cors'
 import express from 'express'
 import authRoutes from './routes/authRoutes.js'
 import listingRoutes from './routes/listingRoutes.js'
+import bookingRoutes from './routes/bookingRoutes.js'
+import ownerRoutes from './routes/ownerRoutes.js'
 
 const app = express()
 const allowedOrigins = (process.env.CLIENT_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173')
@@ -22,6 +24,8 @@ app.get('/api/health', (req, res) => {
 })
 app.use('/api/auth', authRoutes)
 app.use('/api/listings', listingRoutes)
+app.use('/api/bookings', bookingRoutes)
+app.use('/api/owner', ownerRoutes)
 app.use((req, res) => {
   res.status(404).json({ message: 'API route not found.' })
 })

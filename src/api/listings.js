@@ -10,8 +10,28 @@ export async function getListing(id, signal) {
   return response.data.listing
 }
 
+export async function getListingReviews(id, signal) {
+  const response = await api.get(`/listings/${encodeURIComponent(id)}/reviews`, { signal })
+  return response.data.reviews
+}
+
 export async function createListing(payload) {
   const response = await api.post('/listings', payload)
+  return response.data.listing
+}
+
+export async function updateListing(id, payload) {
+  const response = await api.put('/listings/' + encodeURIComponent(id), payload)
+  return response.data.listing
+}
+
+export async function deleteListing(id) {
+  const response = await api.delete('/listings/' + encodeURIComponent(id))
+  return response.data
+}
+
+export async function setListingActive(id, isActive) {
+  const response = await api.patch('/listings/' + encodeURIComponent(id) + '/status', { isActive })
   return response.data.listing
 }
 

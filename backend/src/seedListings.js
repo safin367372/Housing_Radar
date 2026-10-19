@@ -29,6 +29,7 @@ function toSeedRecord(item) {
     photos: ['https://images.unsplash.com/' + item.image + '?auto=format&fit=crop&w=1200&q=85'],
     available: item.available,
     availableRooms: item.available ? 1 + ((Number(item.id) * 3) % 9) : 0,
+    isActive: true,
     rating: item.rating,
     reviewCount: 0,
     isDemo: true,

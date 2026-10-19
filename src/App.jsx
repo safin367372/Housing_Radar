@@ -5,11 +5,17 @@ import Signup from './pages/auth/Signup.jsx'
 import ListingDetailPage from './pages/ListingDetailPage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
+import OwnerListingManagementPage from './pages/OwnerListingManagementPage.jsx'
+import MyBookingsPage from './pages/MyBookingsPage.jsx'
 import Navbar from './components/Navbar.jsx'
 import ListingCard from './components/ListingCard.jsx'
 import ChatbotWidget from './components/ChatbotWidget.jsx'
-import AccountBanner from './components/AccountBanner.jsx'
-import { getListings } from './api/listings.js'
+import { getListing, getListings } from './api/listings.js'
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+
+const stayIcon = L.divIcon({ className: 'stay-map-marker', html: '<span></span>', iconSize: [24, 24], iconAnchor: [12, 12] })
 
 export default function App() {
   return (
@@ -19,13 +25,16 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/listings/:id" element={<ListingDetailPage />} />
       <Route path="/student" element={<ProtectedRoute role="student"><HomePage loggedIn /></ProtectedRoute>} />
+      <Route path="/student/bookings" element={<ProtectedRoute role="student"><MyBookingsPage /></ProtectedRoute>} />
       <Route path="/owner" element={<ProtectedRoute role="owner"><DashboardPage /></ProtectedRoute>} />
+      <Route path="/owner/listings/:id/manage" element={<ProtectedRoute role="owner"><OwnerListingManagementPage /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
 
 function HomePage({ loggedIn = false }) {
+  const savedStorageKey = getSavedStorageKey()
   const [query, setQuery] = useState('')
   const [location, setLocation] = useState('')
   const [minPrice, setMinPrice] = useState('')
@@ -44,6 +53,40 @@ function HomePage({ loggedIn = false }) {
   const [reloadKey, setReloadKey] = useState(0)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [draftFilters, setDraftFilters] = useState({})
+  const [mapOpen, setMapOpen] = useState(false)
+  const [mapListings, setMapListings] = useState([])
+  const [mapLoading, setMapLoading] = useState(false)
+  const [mapError, setMapError] = useState('')
+  const [savedIds, setSavedIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(savedStorageKey) || '[]').filter(id => typeof id === 'string') }
+    catch { return [] }
+  })
+  const [showSavedOnly, setShowSavedOnly] = useState(false)
+  const [savedListings, setSavedListings] = useState([])
+  const [savedLoading, setSavedLoading] = useState(false)
+
+  useEffect(() => {
+    localStorage.setItem(savedStorageKey, JSON.stringify(savedIds))
+  }, [savedStorageKey, savedIds])
+
+  useEffect(() => {
+    if (!showSavedOnly) return undefined
+    if (!savedIds.length) {
+      setSavedListings([])
+      return undefined
+    }
+    const controller = new AbortController()
+    let ignore = false
+    setSavedLoading(true)
+    Promise.all(savedIds.slice(0, 100).map(id => getListing(id, controller.signal).catch(() => null)))
+      .then(items => { if (!ignore) setSavedListings(items.filter(Boolean)) })
+      .finally(() => { if (!ignore) setSavedLoading(false) })
+    return () => { ignore = true; controller.abort() }
+  }, [showSavedOnly, savedIds])
+
+  function toggleSaved(id) {
+    setSavedIds(current => current.includes(id) ? current.filter(value => value !== id) : [...current, id])
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -80,6 +123,32 @@ function HomePage({ loggedIn = false }) {
       controller.abort()
     }
   }, [query, location, minPrice, maxPrice, rateUnit, propertyType, amenity, availableOnly, sort, pageSize, page, reloadKey])
+
+  useEffect(() => {
+    if (!mapOpen) return undefined
+    const controller = new AbortController()
+    let ignore = false
+    async function loadMapListings() {
+      setMapLoading(true)
+      setMapError('')
+      try {
+        const first = await getListings({ page: 1, limit: 8 }, controller.signal)
+        const all = [...(first.listings || [])]
+        const pages = first.pagination?.pages || 1
+        for (let currentPage = 2; currentPage <= pages; currentPage += 1) {
+          const result = await getListings({ page: currentPage, limit: 8 }, controller.signal)
+          all.push(...(result.listings || []))
+        }
+        if (!ignore) setMapListings(all)
+      } catch (requestError) {
+        if (!ignore && requestError.code !== 'ERR_CANCELED') setMapError('Could not load stays for the map. Please try again.')
+      } finally {
+        if (!ignore) setMapLoading(false)
+      }
+    }
+    loadMapListings()
+    return () => { ignore = true; controller.abort() }
+  }, [mapOpen, reloadKey])
 
   function openFilters() {
     setDraftFilters({ query, location, minPrice, maxPrice, rateUnit, propertyType, amenity, availableOnly, sort, pageSize })
@@ -145,9 +214,8 @@ function HomePage({ loggedIn = false }) {
   return (
     <>
       <Navbar />
-      {loggedIn && <AccountBanner role="student" />}
       <main>
-        <section className="hero" id="explore">
+        {!loggedIn && <section className="hero" id="explore">
           <div className="hero-inner">
             <div className="hero-copy">
               <div className="hero-kicker"><span className="kicker-dot" /> MADE FOR STUDENT LIFE</div>
@@ -164,7 +232,7 @@ function HomePage({ loggedIn = false }) {
             </div>
           </div>
           <div className="hero-bottom-rule" />
-        </section>
+        </section>}
 
         <section className="explore-section">
           <div className="section-top"><div><span className="section-kicker">YOUR SEARCH STARTS HERE</span><h2>Find your kind of place</h2><p className="section-description">Set your own budget, choose a stay type, and search around a location.</p></div><a className="text-link" href="#all-stays">Browse all stays <span>→</span></a></div>
@@ -174,12 +242,27 @@ function HomePage({ loggedIn = false }) {
               <FilterIcon /> <span>All filters</span>{activeFilterCount > 0 && <span className="active-filter-count">{activeFilterCount}</span>}
             </button>
           </div>
-          <div className="listing-heading" id="all-stays"><div><span className="section-kicker">A GOOD PLACE TO LAND</span><h2>Places people are exploring</h2></div><span className="results-label">{loading ? 'Loading…' : total ? `Showing ${firstResult}–${lastResult} of ${total} stays` : '0 stays'}</span></div>
+          <div className="listing-heading" id="all-stays"><div><span className="section-kicker">A GOOD PLACE TO LAND</span><h2>{showSavedOnly ? 'Your saved stays' : 'Places people are exploring'}</h2></div><div className="listing-heading-actions"><button type="button" className={'saved-toggle' + (showSavedOnly ? ' selected' : '')} onClick={() => setShowSavedOnly(value => !value)} aria-pressed={showSavedOnly}><HeartIcon filled={showSavedOnly} /> Saved <span>{savedIds.length}</span></button><span className="results-label">{showSavedOnly ? `${savedListings.length} saved stays` : loading ? 'Loading…' : total ? `Showing ${firstResult}–${lastResult} of ${total} stays` : '0 stays'}</span></div></div>
           {error && <div className="listing-state listing-error" role="alert">{error}<button onClick={() => setReloadKey(value => value + 1)}>Try again</button></div>}
-          {!error && loading && <div className="listing-state">Finding stays for you…</div>}
-          {!error && !loading && <div className="listing-grid">{listings.length ? listings.map(item => <ListingCard key={item.id} listing={item} />) : <div className="empty-state">No stays match those filters yet. Try another search or price range.</div>}</div>}
-          {!error && !loading && pageCount > 1 && <nav className="pagination" aria-label="Listing pages"><button type="button" disabled={page <= 1} onClick={() => { setPage(value => Math.max(1, value - 1)); document.getElementById('all-stays')?.scrollIntoView({ behavior: 'smooth' }) }}>← Previous</button><span>Page {page} of {pageCount}</span><button type="button" disabled={page >= pageCount} onClick={() => { setPage(value => Math.min(pageCount, value + 1)); document.getElementById('all-stays')?.scrollIntoView({ behavior: 'smooth' }) }}>Next →</button></nav>}
-          <div className="map-banner"><div className="map-mark"><PinIcon /></div><div><b>Want to see what’s nearby?</b><span>See stays on a map and compare areas before you decide.</span></div><button className="map-button">Explore the map <span>→</span></button></div>
+          {!error && (showSavedOnly ? savedLoading : loading) && <div className="listing-state">{showSavedOnly ? 'Loading your saved stays…' : 'Finding stays for you…'}</div>}
+          {!error && !(showSavedOnly ? savedLoading : loading) && <div className="listing-grid">{(showSavedOnly ? savedListings : listings).length ? (showSavedOnly ? savedListings : listings).map(item => <ListingCard key={item.id} listing={item} saved={savedIds.includes(item.id)} onToggleSaved={toggleSaved} />) : <div className="empty-state">{showSavedOnly ? 'You haven’t saved any stays yet. Tap the heart on a stay to keep it here.' : 'No stays match those filters yet. Try another search or price range.'}</div>}</div>}
+          {!error && !showSavedOnly && !loading && pageCount > 1 && <nav className="pagination" aria-label="Listing pages"><button type="button" disabled={page <= 1} onClick={() => { setPage(value => Math.max(1, value - 1)); document.getElementById('all-stays')?.scrollIntoView({ behavior: 'smooth' }) }}>← Previous</button><span>Page {page} of {pageCount}</span><button type="button" disabled={page >= pageCount} onClick={() => { setPage(value => Math.min(pageCount, value + 1)); document.getElementById('all-stays')?.scrollIntoView({ behavior: 'smooth' }) }}>Next →</button></nav>}
+          <div className="map-banner"><div className="map-mark"><PinIcon /></div><div><b>Want to see what’s nearby?</b><span>See active stays with location coordinates on a map.</span></div><button className="map-button" type="button" onClick={() => setMapOpen(value => !value)} aria-expanded={mapOpen}>{mapOpen ? 'Hide map' : 'Explore the map'} <span>{mapOpen ? '↑' : '→'}</span></button></div>
+          {mapOpen && <section className="stay-map-panel" aria-label="Map of active stays">
+            <div className="stay-map-heading"><div><span className="section-kicker">EXPLORE BY LOCATION</span><h3>Active stays on the map</h3></div><span>{mapListings.filter(item => Number.isFinite(item.location?.coordinates?.lat) && Number.isFinite(item.location?.coordinates?.lng)).length} mapped · {mapListings.length} stays</span></div>
+            {mapLoading && <p className="stay-map-message">Loading locations…</p>}
+            {!mapLoading && mapError && <p className="stay-map-message" role="alert">{mapError}</p>}
+            {!mapLoading && !mapError && <>
+              {mapListings.some(item => !Number.isFinite(item.location?.coordinates?.lat) || !Number.isFinite(item.location?.coordinates?.lng)) && <p className="stay-map-note">Some listings do not have coordinates yet, so they cannot appear as pins. Owners can add map coordinates when editing a listing.</p>}
+              <MapContainer className="stay-map" center={[9.2667, 76.6667]} zoom={13} scrollWheelZoom={false}>
+                <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <FitStayBounds listings={mapListings} />
+                <RefreshMapSize />
+                {mapListings.filter(item => Number.isFinite(item.location?.coordinates?.lat) && Number.isFinite(item.location?.coordinates?.lng)).map(item => <Marker key={item.id} position={[item.location.coordinates.lat, item.location.coordinates.lng]} icon={stayIcon}><Popup><Link to={'/listings/' + item.id}><strong>{item.name}</strong></Link><br />{item.location?.area}, {item.location?.city}<br />₹{Number(item.price).toLocaleString('en-IN')} / {item.priceUnit}</Popup></Marker>)}
+              </MapContainer>
+              {!mapListings.some(item => Number.isFinite(item.location?.coordinates?.lat) && Number.isFinite(item.location?.coordinates?.lng)) && <p className="stay-map-empty">No listings have map coordinates yet. Add latitude and longitude to an owner listing to show its pin here.</p>}
+            </>}
+          </section>}
         </section>
         <section className="how-section" id="how-it-works"><span className="section-kicker">MADE SIMPLE</span><h2>A place to stay, in three easy steps.</h2><div className="steps-grid"><div><span>01</span><b>Find your fit</b><p>Search trusted places by budget, room type, and what matters to you.</p></div><div><span>02</span><b>Get to know it</b><p>See the details, amenities, and distance before you make a decision.</p></div><div><span>03</span><b>Feel at home</b><p>Reach out to the owner and get ready for your next chapter.</p></div></div></section>
       </main>
@@ -229,6 +312,45 @@ function HomePage({ loggedIn = false }) {
 }
 
 function SearchIcon() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" stroke="currentColor" strokeWidth="1.8"/><path d="m16 16 4.3 4.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg> }
+function HeartIcon({ filled }) { return <svg viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg> }
 function FilterIcon() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M7 12h10m-7 5h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/><circle cx="8" cy="7" r="2" fill="currentColor"/><circle cx="14" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="17" r="2" fill="currentColor"/></svg> }
 function PinIcon() { return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.25 8.33c0 4.17-6.25 9.17-6.25 9.17S3.75 12.5 3.75 8.33a6.25 6.25 0 1 1 12.5 0Z" stroke="currentColor" strokeWidth="1.5"/><circle cx="10" cy="8.33" r="2.08" stroke="currentColor" strokeWidth="1.5"/></svg> }
+function FitStayBounds({ listings }) {
+  const map = useMap()
+  useEffect(() => {
+    const points = listings.map(item => item.location?.coordinates).filter(point => Number.isFinite(point?.lat) && Number.isFinite(point?.lng)).map(point => [point.lat, point.lng])
+    if (points.length === 1) map.setView(points[0], 15)
+    else if (points.length > 1) map.fitBounds(points, { padding: [32, 32], maxZoom: 15 })
+  }, [listings, map])
+  return null
+}
+function RefreshMapSize() {
+  const map = useMap()
+  useEffect(() => {
+    const refresh = () => map.invalidateSize({ pan: false })
+    const frame = window.requestAnimationFrame(refresh)
+    const observer = new ResizeObserver(refresh)
+    observer.observe(map.getContainer())
+    document.addEventListener('visibilitychange', refresh)
+    window.addEventListener('resize', refresh)
+    window.addEventListener('orientationchange', refresh)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', refresh)
+      window.removeEventListener('resize', refresh)
+      window.removeEventListener('orientationchange', refresh)
+    }
+  }, [map])
+  return null
+}
 function RadarIcon() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5.64 5.64a9 9 0 1 0 12.72 0M8.47 8.47a5 5 0 1 0 7.06 0M12 12l6.36-6.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="18.5" cy="5.5" r="1.5" fill="currentColor"/></svg> }
+
+function getSavedStorageKey() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    return `housingradar:saved-stays:${user?.id || 'guest'}`
+  } catch {
+    return 'housingradar:saved-stays:guest'
+  }
+}

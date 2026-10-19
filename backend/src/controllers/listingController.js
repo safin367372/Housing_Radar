@@ -17,7 +17,8 @@ function numberParam(value, name, res) {
 
 export async function getListings(req, res, next) {
   try {
-    const filter = {}
+    // Treat older records without isActive as active until they are migrated.
+    const filter = { isActive: { $ne: false } }
     const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : ''
     const location = typeof req.query.location === 'string' ? req.query.location.trim().slice(0, 100) : ''
 
@@ -107,7 +108,7 @@ export async function getListingById(req, res, next) {
   try {
     const value = req.params.id
     const lookup = mongoose.isValidObjectId(value) ? { _id: value } : { slug: value.toLowerCase() }
-    const listing = await Listing.findOne(lookup)
+    const listing = await Listing.findOne({ ...lookup, isActive: { $ne: false } })
     if (!listing) return res.status(404).json({ message: 'Stay not found.' })
     return res.json({ listing: listing.toJSON() })
   } catch (error) {

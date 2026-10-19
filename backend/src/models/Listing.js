@@ -34,6 +34,7 @@ const listingSchema = new mongoose.Schema({
   photos: [{ type: String, trim: true }],
   available: { type: Boolean, default: true, index: true },
   availableRooms: { type: Number, default: 0, min: 0, max: 999 },
+  isActive: { type: Boolean, default: true, index: true },
   rating: { type: Number, default: 0, min: 0, max: 5 },
   reviewCount: { type: Number, default: 0, min: 0 },
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },

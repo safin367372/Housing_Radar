@@ -54,6 +54,7 @@ function makeRecord(row, index) {
     photos: [0, 1, 2].map(offset => 'https://images.unsplash.com/' + photoIds[(index + offset) % photoIds.length] + '?auto=format&fit=crop&w=1200&q=85'),
     available: true,
     availableRooms: 1 + ((index * 7) % 9),
+    isActive: true,
     rating: 0,
     reviewCount: 0,
     ownerDetails: { name: row.ownerName, phones: row.phones },

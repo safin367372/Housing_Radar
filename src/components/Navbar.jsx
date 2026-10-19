@@ -16,7 +16,7 @@ export default function Navbar() {
         <button className="menu-toggle" aria-label="Toggle navigation" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}><span></span><span></span><span></span></button>
         <nav className={menuOpen ? 'nav-links open' : 'nav-links'}>
           <Link className="nav-link active" to={homePath} onClick={() => setMenuOpen(false)}>Find a stay</Link>
-          <Link className="nav-link" to={homePath + '#how-it-works'} onClick={() => setMenuOpen(false)}>How it works</Link>
+          {user?.role === 'student' ? <Link className="nav-link" to="/student/bookings" onClick={() => setMenuOpen(false)}>My bookings</Link> : <Link className="nav-link" to={homePath + '#how-it-works'} onClick={() => setMenuOpen(false)}>How it works</Link>}
           <span className="nav-divider" />
           {user
             ? <Link className="nav-login" to={dashboardPath} onClick={() => setMenuOpen(false)}>My account</Link>
