@@ -37,7 +37,7 @@ The project brief describes RoomRadar/HousingRadar as a student accommodation pl
 - Owner dashboard editing for listing details and current available-room count/status.
 - Owner-only listing deletion with a confirmation prompt.
 - Owner-controlled active/inactive visibility; inactive listings are hidden from public search and detail pages.
-- Student booking requests, owner approval/rejection, cancellation before a confirmed stay starts, and room-count updates on confirmation/completion.
+- Student booking requests with date-specific room holds, owner approval/rejection, cancellation before a confirmed stay starts, and hold release on rejection/cancellation/completion.
 - Reviews restricted to completed bookings, with public verified reviews and recalculated listing ratings.
 - Complaint submission by booked students and owner response/status management.
 - Owner dashboard views for confirmed room occupancy, booking requests, property reviews, and user complaints.
@@ -48,7 +48,7 @@ The project brief describes RoomRadar/HousingRadar as a student accommodation pl
 
 ### Not implemented yet
 
-See [Planned work](#planned-work). Booking confirmation updates available room counts, but the prototype does not allocate rooms against overlapping date ranges or send automatic notifications.
+See [Planned work](#planned-work). The room-map booking flow blocks overlapping requests for the same room while a request is pending or confirmed. Pending holds do not expire automatically, and booking notifications are not implemented.
 
 ## Features implemented
 
@@ -86,7 +86,7 @@ The floating assistant button opens a preview panel. The message field is intent
 The following items in the original scope remain incomplete:
 
 1. **Notifications:** inform students and owners about booking state and complaint updates.
-2. **Date-aware room allocation:** current room counts are reserved on confirmation and released on completion/cancellation, but requests are not checked for overlapping dates and there is no timed hold or payment.
+2. **Booking operations:** room-map requests hold selected rooms for overlapping dates and release them on rejection/cancellation/completion. Add automatic expiry for unanswered requests, payment if required, and end-to-end tests.
 3. **Maps improvements:** destination entry and per-stay route distance/time; current pins require owner-supplied coordinates.
 4. **AI/RAG chatbot:** separate Spring Boot + Spring AI service using PostgreSQL/pgvector and Gemini or Ollama, with document retrieval, retrieval checks, and a safe fallback. The current widget is only a preview.
 5. **Vacancy automation agent:** planned service/agent to update vacancy data; no such integration exists yet.
@@ -400,7 +400,7 @@ Create listing request fields include `name`, `propertyType`, `description`, `lo
 ### Booking, Review, and Complaint
 
 - A booking links a student, owner, and listing; records requested rooms, stay dates, and a status (`pending`, `confirmed`, `rejected`, `completed`, or `cancelled`).
-- Owner confirmation decrements the listing's available-room count. Completion after the end date or student cancellation before the start date releases those rooms.
+- For room-map listings, a request creates a date-specific room hold. Rejection, cancellation, or completion releases it; pending holds do not currently expire automatically.
 - A review links to one completed booking; a unique booking index prevents duplicate reviews.
 - A complaint links to a confirmed or completed booking and stores its category, message, status, and owner response.
 
@@ -418,14 +418,14 @@ Imported records are keyed by their workbook source row through `sourceKey`, so 
 - JWT and user information are currently stored in `localStorage`; this is convenient for a prototype but is exposed to JavaScript running in the page. Review session storage and XSS protections before production use.
 - CORS is restricted to configured origins. Set `CLIENT_ORIGINS` to the deployed frontend origin(s) in production.
 - Listing photos are currently external URLs. There is no upload service or image moderation.
-- Booking confirmation updates room counts, but availability is not allocated against overlapping date ranges and there is no payment or automatic expiry of pending requests.
+- Pending and confirmed room-map bookings block the selected rooms for overlapping dates. Pending requests have no automatic expiry, and there is no payment flow.
 - Demo records may show generated prices, photos, amenities, and room counts. Treat them as samples, not verified claims.
 - There is no password reset/email verification, notification delivery, or chatbot backend yet. Booking updates span multiple MongoDB documents without a transaction, so production use needs stronger transaction handling and automated coverage.
 
 ## Suggested implementation order
 
 1. Add booking notifications and a destination field for map routes.
-2. Add date-aware room allocation, transactional inventory updates, and automated test coverage.
+2. Add automatic expiry for unanswered room requests and automated booking-flow tests.
 3. Implement and connect the Spring AI RAG service; replace the preview chatbot panel with working chat.
 4. Add password recovery, email verification, image uploads, deployment configuration, and production data validation.
 

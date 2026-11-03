@@ -15,6 +15,11 @@ export async function getListingReviews(id, signal) {
   return response.data.reviews
 }
 
+export async function getListingRoomAvailability(id, startDate, endDate, signal, roomTypeKey) {
+  const response = await api.get(`/listings/${encodeURIComponent(id)}/room-availability`, { params: { startDate, endDate, ...(roomTypeKey ? { roomTypeKey } : {}) }, signal })
+  return response.data.unavailableRoomIds
+}
+
 export async function createListing(payload) {
   const response = await api.post('/listings', payload)
   return response.data.listing

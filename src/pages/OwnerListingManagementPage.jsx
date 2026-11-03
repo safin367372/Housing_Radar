@@ -52,7 +52,7 @@ export default function OwnerListingManagementPage() {
     setNotice('')
     try {
       await updateOwnerBooking(booking.id, { status })
-      setNotice(status === 'confirmed' ? 'Booking accepted. Rooms are now reserved.' : status === 'completed' ? 'Stay marked complete. Rooms are available again and a verified review is unlocked.' : 'Booking request declined.')
+      setNotice(status === 'confirmed' ? 'Booking accepted. The room remains held for these dates.' : status === 'completed' ? 'Stay marked complete. The room is available again and a verified review is unlocked.' : 'Booking request declined. The room is available again for these dates.')
       setReload(value => value + 1)
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Could not update the booking.')
@@ -88,7 +88,7 @@ export default function OwnerListingManagementPage() {
       {!loading && listing && <>
         <header className="listing-management-heading">
           <div><span className="section-kicker">PROPERTY MANAGEMENT</span><h1>{listing.name}</h1><p>{listing.location?.area}, {listing.location?.city} · {listing.typeLabel}</p></div>
-          <div className="management-availability"><span>{listing.availableRooms ?? 0}</span><small>rooms available</small></div>
+          <div className="management-availability"><span>{listing.availableRooms ?? 0}</span><small>rooms in layout</small></div>
         </header>
         {error && <p className="booking-message error" role="alert">{error}</p>}
         {notice && <p className="booking-message success" role="status">{notice}</p>}
@@ -98,10 +98,10 @@ export default function OwnerListingManagementPage() {
 
         {section === 'rooms' && <section className="listing-management-section" role="tabpanel">
           <div className="management-section-heading"><div><span className="section-kicker">ROOM INVENTORY</span><h2>Rooms and booking requests</h2></div><div className="management-occupancy"><b>{occupiedRooms}</b><span>reserved / occupied</span></div></div>
-          <p className="owner-management-empty">Confirming a booking reserves its rooms from availability. After the stay end date, mark it complete to return the rooms and let the guest leave a review.</p>
+          <p className="owner-management-empty">A request holds its selected rooms for those dates. Declining releases them; after a confirmed stay ends, mark it complete to release them and let the guest leave a review.</p>
           {!bookings.length && <div className="management-empty-state">No booking requests for this property yet.</div>}
           <div className="management-record-list">{bookings.map(booking => <article className="owner-booking-row" key={booking.id}>
-            <div className="owner-booking-main"><span className={'booking-status status-' + booking.status}>{booking.status}</span><h3>{booking.rooms} room{booking.rooms === 1 ? '' : 's'} · {booking.student?.name || 'Student'}</h3><p>{booking.student?.email || ''}</p><small>{displayDate(booking.startDate)} – {displayDate(booking.endDate)}</small>{booking.message && <p className="owner-booking-message">“{booking.message}”</p>}</div>
+            <div className="owner-booking-main"><span className={'booking-status status-' + booking.status}>{booking.status}</span><h3>{booking.roomTypeName ? booking.roomTypeName + ' · ' : ''}{booking.rooms} room{booking.rooms === 1 ? '' : 's'} · {booking.student?.name || 'Student'}</h3><p>{booking.student?.email || ''}</p>{booking.selectedRoomIds?.length > 0 && <p>Selected rooms: {booking.selectedRoomIds.map(roomId => formatRoomId(roomId, booking.roomTypeKey)).join(', ')}</p>}<small>{displayDate(booking.startDate)} – {displayDate(booking.endDate)}</small>{booking.message && <p className="owner-booking-message">“{booking.message}”</p>}</div>
             <div className="owner-booking-actions">{booking.status === 'pending' && <><button className="owner-accept-button" type="button" disabled={busyId === booking.id || new Date(booking.startDate) <= new Date()} onClick={() => updateBooking(booking, 'confirmed')}>Accept</button><button className="owner-listing-delete" type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, 'rejected')}>Decline</button></>}{booking.status === 'confirmed' && (new Date(booking.endDate) <= new Date() ? <button className="owner-accept-button" type="button" disabled={busyId === booking.id} onClick={() => updateBooking(booking, 'completed')}>Mark complete</button> : <small className="owner-completion-note">Complete after {displayDate(booking.endDate)}</small>)}</div>
           </article>)}</div>
         </section>}
@@ -123,3 +123,5 @@ export default function OwnerListingManagementPage() {
 }
 
 function displayDate(value) { return new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) }
+
+function formatRoomId(roomId, roomTypeKey) { return roomTypeKey && roomTypeKey !== 'legacy' ? `Room ${roomId.split('-').at(-1)}` : roomId }

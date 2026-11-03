@@ -49,7 +49,7 @@ Owner JWT required:
 - GET /api/owner/complaints — view reports from booked guests.
 - PATCH /api/owner/complaints/:id — update the complaint status and owner response.
 
-Confirming a booking decrements `availableRooms`; completing the stay or cancelling before it starts releases the rooms. Current inventory is not allocated against overlapping dates, pending requests do not place temporary holds, and payment is not implemented.
+For owner-managed listings with a room map, sending a request places a date-specific hold on the selected room or rooms. Other requests for the same rooms and overlapping dates are rejected. Student cancellation or owner rejection releases the hold; confirmation keeps it through the stay, and completion releases it. Sample listings are excluded. Holds do not expire automatically, and payment is not implemented.
 
 The existing frontend sample listings are marked isDemo and are only inserted into an empty listings collection. From this folder, run npm run seed to add them to MongoDB. The seed command skips insertion whenever any listing already exists.
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Navbar from '../components/Navbar.jsx'
 import ChatbotWidget from '../components/ChatbotWidget.jsx'
-import { getListing, getListingReviews } from '../api/listings.js'
+import { getListing, getListingReviews, getListingRoomAvailability } from '../api/listings.js'
 import { createBooking } from '../api/bookings.js'
 
 export default function ListingDetailPage() {
@@ -15,6 +15,15 @@ export default function ListingDetailPage() {
   const [bookingError, setBookingError] = useState('')
   const [bookingNotice, setBookingNotice] = useState('')
   const [bookingUser, setBookingUser] = useState(null)
+  const [selectedRoomIds, setSelectedRoomIds] = useState([])
+  const [selectedRoomTypeKey, setSelectedRoomTypeKey] = useState('')
+  const [startDate, setStartDate] = useState(() => dateAfter(1))
+  const [endDate, setEndDate] = useState(() => dateAfter(31))
+  const [unavailableRoomIds, setUnavailableRoomIds] = useState([])
+  const [roomAvailabilityLoading, setRoomAvailabilityLoading] = useState(false)
+  const [roomAvailabilityError, setRoomAvailabilityError] = useState('')
+  const roomMapEnabled = Boolean(listing?.owner && !listing?.isDemo)
+  const instantBookingPreview = listing?.priceUnit === 'night' && ['hotel', 'lodge'].includes(listing?.propertyType)
 
   useEffect(() => {
     try { setBookingUser(JSON.parse(localStorage.getItem('user') || 'null')) } catch { setBookingUser(null) }
@@ -44,6 +53,36 @@ export default function ListingDetailPage() {
     return () => controller.abort()
   }, [listing?.id])
 
+  useEffect(() => {
+    if (!listing?.id || !roomMapEnabled || !startDate || !endDate || endDate <= startDate) {
+      setUnavailableRoomIds([])
+      setRoomAvailabilityLoading(false)
+      setRoomAvailabilityError('')
+      return undefined
+    }
+    const controller = new AbortController()
+    let active = true
+    const refreshAvailability = async () => {
+      setRoomAvailabilityLoading(true)
+      try {
+        const unavailable = await getListingRoomAvailability(listing.id, startDate, endDate, controller.signal, selectedRoomTypeKey)
+        if (active) { setUnavailableRoomIds(unavailable); setRoomAvailabilityError('') }
+      } catch (requestError) {
+        if (active && requestError.code !== 'ERR_CANCELED') setRoomAvailabilityError(requestError.response?.data?.message || 'Could not check room availability.')
+      } finally {
+        if (active) setRoomAvailabilityLoading(false)
+      }
+    }
+    refreshAvailability()
+    const timer = window.setInterval(refreshAvailability, 12000)
+    window.addEventListener('focus', refreshAvailability)
+    return () => { active = false; controller.abort(); window.clearInterval(timer); window.removeEventListener('focus', refreshAvailability) }
+  }, [listing?.id, roomMapEnabled, startDate, endDate, selectedRoomTypeKey])
+
+  useEffect(() => {
+    if (unavailableRoomIds.length) setSelectedRoomIds(current => { const next = current.filter(roomId => !unavailableRoomIds.includes(roomId)); return next.length === current.length ? current : next })
+  }, [unavailableRoomIds])
+
   async function handleBookingSubmit(event) {
     event.preventDefault()
     const form = event.currentTarget
@@ -52,9 +91,10 @@ export default function ListingDetailPage() {
     setBookingError('')
     setBookingNotice('')
     try {
-      await createBooking(listing.id, { startDate: data.get('startDate'), endDate: data.get('endDate'), rooms: Number(data.get('rooms')), message: data.get('message') })
-      setBookingNotice('Request sent. You can follow its status from My bookings.')
+      await createBooking(listing.id, { startDate: data.get('startDate'), endDate: data.get('endDate'), rooms: roomMapEnabled ? selectedRoomIds.length : Number(data.get('rooms')), ...(roomMapEnabled ? { selectedRoomIds, roomTypeKey: selectedRoomTypeKey } : {}), message: data.get('message') })
+      setBookingNotice(roomMapEnabled ? 'Room request sent. The owner will confirm your selected room.' : 'Request sent. You can follow its status from My bookings.')
       form.reset()
+      setSelectedRoomIds([])
     } catch (requestError) {
       setBookingError(requestError.response?.data?.message || 'Could not send the booking request.')
     } finally {
@@ -62,6 +102,11 @@ export default function ListingDetailPage() {
     }
   }
 
+  const effectiveRoomTypes = listing?.roomTypes?.length ? listing.roomTypes : listing ? [{ key: 'legacy', name: listing.roomType, price: listing.price, priceUnit: listing.priceUnit, capacity: 1, totalRooms: listing.availableRooms || 0, amenities: [] }] : []
+  const selectedRoomType = effectiveRoomTypes.find(type => type.key === selectedRoomTypeKey) || effectiveRoomTypes[0]
+  useEffect(() => { if (selectedRoomType && selectedRoomType.key !== selectedRoomTypeKey) { setSelectedRoomTypeKey(selectedRoomType.key); setSelectedRoomIds([]) } }, [selectedRoomType, selectedRoomTypeKey])
+  const roomPrefix = listing?.name?.toLowerCase().includes('gloriace') ? 'G' : 'R'
+  const roomIds = selectedRoomType ? Array.from({ length: Math.max(0, Number(selectedRoomType.totalRooms) || 0) }, (_, index) => selectedRoomType.key === 'legacy' ? `${roomPrefix}-${String(index + 1).padStart(2, '0')}` : `${selectedRoomType.key}-${String(index + 1).padStart(2, '0')}`) : []
   const locationText = listing
     ? [listing.location?.area, listing.location?.city].filter(Boolean).join(', ')
     : ''
@@ -153,24 +198,24 @@ export default function ListingDetailPage() {
                 )}
               </div>
               <aside className="detail-price-card">
-                <span className="section-kicker">RATE AND ROOM</span>
-                <div className="detail-price">₹{listing.price.toLocaleString('en-IN')}<small> / {listing.priceUnit}</small></div>
-                <p>{listing.roomType}</p>
+                <span className="section-kicker">ROOM OPTIONS</span>
+                <div className="detail-room-options">{effectiveRoomTypes.map(type => <button key={type.key} type="button" className={'detail-room-option' + (type.key === selectedRoomType?.key ? ' selected' : '')} aria-pressed={type.key === selectedRoomType?.key} onClick={() => { setSelectedRoomTypeKey(type.key); setSelectedRoomIds([]) }}><span><b>{type.name}</b><small>Up to {type.capacity} guest{type.capacity === 1 ? '' : 's'} · {type.totalRooms} room{type.totalRooms === 1 ? '' : 's'}</small>{type.amenities?.length > 0 && <small>{type.amenities.join(' · ')}</small>}</span><strong>₹{Number(type.price).toLocaleString('en-IN')}<small> / {type.priceUnit}</small></strong></button>)}</div>
                 <div className={'detail-availability' + (listing.available ? '' : ' full')}><i />{listing.isDemo ? 'Confirm availability with owner' : listing.available ? 'Rooms available' : 'Currently full'}</div>
-                <div className="detail-room-count"><strong>{listing.availableRooms ?? 0}</strong><span><b>Rooms listed as available</b><small>{listing.isDemo ? 'Sample count · not live availability' : 'Ask the owner to confirm before booking'}</small></span></div>
+                <div className="detail-room-count"><strong>{selectedRoomType?.totalRooms ?? 0}</strong><span><b>Rooms in this option</b><small>{listing.isDemo ? 'Sample count · not live availability' : roomMapEnabled ? 'Availability depends on selected dates' : 'Ask the owner to confirm before booking'}</small></span></div>
+                {instantBookingPreview && <div className="booking-mode-preview"><span>INSTANT BOOKING · COMING SOON</span><p>Payments are not connected yet. For now, booking requests still go to the owner for approval.</p></div>}
                 <hr />
                 <p className="detail-price-help">Availability and rates are provided by the property owner.</p>
                 {listing.owner && <div className="detail-booking-area">
                   <h2>Request these rooms</h2>
                   {bookingUser?.role === 'student'
                     ? <form className="detail-booking-form" onSubmit={handleBookingSubmit}>
-                        <label><span>From</span><input name="startDate" type="date" required min={dateAfter(1)} defaultValue={dateAfter(1)} /></label>
-                        <label><span>Until</span><input name="endDate" type="date" required min={dateAfter(2)} defaultValue={dateAfter(listing.priceUnit === 'month' ? 31 : 2)} /></label>
-                        <label><span>Rooms requested</span><input name="rooms" type="number" required min="1" max="20" defaultValue="1" /></label>
+                        <label><span>From</span><input name="startDate" type="date" required min={dateAfter(1)} value={startDate} onChange={event => { const value = event.target.value; setStartDate(value); if (endDate <= value) setEndDate(dateAfterFrom(value, 1)) }} /></label>
+                        <label><span>Until</span><input name="endDate" type="date" required min={dateAfterFrom(startDate, 1)} value={endDate} onChange={event => setEndDate(event.target.value)} /></label>
+                        {roomMapEnabled ? <><fieldset className="demo-room-picker"><legend>Choose a {selectedRoomType?.name || 'room'}</legend><p>Open requests and confirmed bookings for your dates show in red.</p><div className="demo-room-legend"><span><i className="free" /> Available</span><span><i className="reserved" /> Requested or booked</span></div><div className="demo-room-grid" aria-label={'Choose rooms at ' + listing.name}>{roomIds.map((roomId, index) => { const chosen = selectedRoomIds.includes(roomId); const unavailable = unavailableRoomIds.includes(roomId); return <button key={roomId} type="button" disabled={unavailable || roomAvailabilityLoading || Boolean(roomAvailabilityError)} className={'demo-room-tile' + (chosen ? ' selected' : '') + (unavailable ? ' reserved' : '')} aria-pressed={chosen} aria-label={roomTileLabel(roomId, selectedRoomType?.key) + (unavailable ? ', unavailable for selected dates' : ', available')} onClick={() => setSelectedRoomIds(current => chosen ? current.filter(value => value !== roomId) : current.length < 20 ? [...current, roomId] : current)}><small>{index < 6 ? 'GROUND' : 'FIRST'} FLOOR</small><b>{roomTileLabel(roomId, selectedRoomType?.key)}</b></button> })}</div><span className="demo-room-selection">{roomAvailabilityLoading ? 'Checking room requests…' : roomAvailabilityError ? roomAvailabilityError : selectedRoomIds.length ? `Selected: ${selectedRoomIds.join(', ')}` : 'Select one or more rooms'}</span></fieldset></> : <label><span>Rooms requested</span><input name="rooms" type="number" required min="1" max="20" defaultValue="1" /></label>}
                         <label><span>Message <small>Optional</small></span><textarea name="message" rows="2" maxLength="1000" placeholder="Add a question for the owner" /></label>
                         {bookingError && <p className="booking-message error" role="alert">{bookingError}</p>}
                         {bookingNotice && <p className="booking-message success" role="status">{bookingNotice} <Link to="/student/bookings">Open bookings</Link></p>}
-                        <button className="button booking-submit" type="submit" disabled={bookingBusy || !listing.available}>{bookingBusy ? 'Sending…' : listing.available ? 'Send booking request' : 'No rooms currently available'}</button>
+                        <button className="button booking-submit" type="submit" disabled={bookingBusy || !listing.available || (roomMapEnabled && (selectedRoomIds.length === 0 || roomAvailabilityLoading || Boolean(roomAvailabilityError)))}>{bookingBusy ? 'Sending…' : listing.available ? roomMapEnabled ? 'Request selected room' : 'Send booking request' : 'No rooms currently available'}</button>
                       </form>
                     : bookingUser?.role === 'owner'
                       ? <p className="detail-price-help">Sign in with a student account to request a stay.</p>
@@ -187,11 +232,12 @@ export default function ListingDetailPage() {
         )}
       </main>
       <ChatbotWidget />
-      <footer className="footer"><Link className="brand" to="/"><span className="brand-mark"><RadarIcon /></span><span>housing<span className="brand-accent">radar</span></span></Link><span>A better way to find a place to stay.</span><small>HousingRadar · Here for every kind of stay</small></footer>
     </>
   )
 }
 
 function PinIcon() { return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M16.25 8.33c0 4.17-6.25 9.17-6.25 9.17S3.75 12.5 3.75 8.33a6.25 6.25 0 1 1 12.5 0Z" stroke="currentColor" strokeWidth="1.5"/><circle cx="10" cy="8.33" r="2.08" stroke="currentColor" strokeWidth="1.5"/></svg> }
-function RadarIcon() { return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5.64 5.64a9 9 0 1 0 12.72 0M8.47 8.47a5 5 0 1 0 7.06 0M12 12l6.36-6.36" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="18.5" cy="5.5" r="1.5" fill="currentColor"/></svg> }
-function dateAfter(days) { const date = new Date(); date.setDate(date.getDate() + days); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
+function dateAfter(days) { const date = new Date(); date.setDate(date.getDate() + days); return formatDate(date) }
+function dateAfterFrom(value, days) { const date = new Date(`${value}T00:00:00`); date.setDate(date.getDate() + days); return formatDate(date) }
+function formatDate(date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
+function roomTileLabel(roomId, typeKey) { return typeKey === 'legacy' ? roomId : `Room ${roomId.split('-').at(-1)}` }

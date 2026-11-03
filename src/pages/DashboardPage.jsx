@@ -13,6 +13,8 @@ export default function DashboardPage() {
   const [success, setSuccess] = useState('')
   const [formKey, setFormKey] = useState(0)
   const [editingListing, setEditingListing] = useState(null)
+  const [roomTypes, setRoomTypes] = useState([newRoomType()])
+  const [listingType, setListingType] = useState('hostel')
   const [deletingListingId, setDeletingListingId] = useState(null)
   const [changingStatusId, setChangingStatusId] = useState(null)
 
@@ -40,15 +42,13 @@ export default function DashboardPage() {
     const payload = {
       name: data.get('name'),
       propertyType: data.get('propertyType'),
+      guestPolicy: data.get('guestPolicy') || 'all',
       description: data.get('description'),
       location: {
         area: data.get('area'), city: data.get('city'), address: data.get('address'),
         coordinates: { lat: data.get('latitude'), lng: data.get('longitude') },
       },
-      price: Number(data.get('price')),
-      priceUnit: data.get('priceUnit'),
-      availableRooms: Number(data.get('availableRooms')),
-      roomType: data.get('roomType'),
+      roomTypes: roomTypes.map(type => ({ ...type, price: Number(type.price), capacity: Number(type.capacity), totalRooms: Number(type.totalRooms), amenities: String(type.amenities || '').split(',').map(item => item.trim()).filter(Boolean) })),
       amenities: String(data.get('amenities') || '').split(',').map(item => item.trim()).filter(Boolean),
       photos: String(data.get('photos') || '').split('\n').map(item => item.trim()).filter(Boolean),
       contactPhone: data.get('contactPhone'),
@@ -65,6 +65,8 @@ export default function DashboardPage() {
         setListings(current => [listing, ...current])
         setSuccess('Your listing is live and now appears in search results.')
       }
+      setRoomTypes([newRoomType()])
+      setListingType('hostel')
       setFormKey(current => current + 1)
     } catch (error) {
       setFormError(error.response?.data?.message || 'Could not publish the listing. Please try again.')
@@ -75,6 +77,8 @@ export default function DashboardPage() {
 
   function startEditing(listing) {
     setEditingListing(listing)
+    setListingType(listing.propertyType)
+    setRoomTypes((listing.roomTypes?.length ? listing.roomTypes : [{ key: 'legacy', name: listing.roomType || '', price: listing.price, priceUnit: listing.priceUnit, capacity: 1, totalRooms: listing.availableRooms || 1, amenities: [] }]).map(type => ({ ...type, amenities: Array.isArray(type.amenities) ? type.amenities.join(', ') : type.amenities || '' })))
     setFormError('')
     setSuccess('')
     setFormKey(current => current + 1)
@@ -83,6 +87,8 @@ export default function DashboardPage() {
 
   function cancelEditing() {
     setEditingListing(null)
+    setListingType('hostel')
+    setRoomTypes([newRoomType()])
     setFormError('')
     setSuccess('')
     setFormKey(current => current + 1)
@@ -132,18 +138,25 @@ export default function DashboardPage() {
             <div className="owner-form-heading"><span className="owner-form-icon">{editingListing ? '✎' : '＋'}</span><div><h2>{editingListing ? 'Edit your listing' : 'Add a new listing'}</h2><p>{editingListing ? 'Update property details and current room availability.' : 'Share accurate details so guests know what to expect.'}</p></div></div>
             <form key={formKey} className="owner-listing-form" onSubmit={handleSubmit}>
               <label className="owner-form-field full"><span>Listing name</span><input name="name" required minLength="2" maxLength="120" defaultValue={editingListing?.name || ''} placeholder="e.g. Greenview Hostel" /></label>
-              <div className="owner-form-row"><label className="owner-form-field"><span>Type of place</span><select name="propertyType" required defaultValue={editingListing?.propertyType || 'hostel'}><option value="hostel">Hostel</option><option value="pg">PG</option><option value="hotel">Hotel</option><option value="lodge">Lodge</option></select></label><label className="owner-form-field"><span>Room type</span><input name="roomType" required maxLength="80" defaultValue={editingListing?.roomType || ''} placeholder="e.g. 2 sharing" /></label></div>
+              <label className="owner-form-field"><span>Type of place</span><select name="propertyType" required value={listingType} onChange={event => setListingType(event.target.value)}><option value="hostel">Hostel</option><option value="pg">PG</option><option value="hotel">Hotel</option><option value="lodge">Lodge</option></select></label>
+              {['hostel', 'pg'].includes(listingType) && <label className="owner-form-field"><span>Who can stay here?</span><select name="guestPolicy" defaultValue={editingListing?.guestPolicy || 'all'}><option value="all">Any guest</option><option value="men">Men</option><option value="women">Women</option><option value="mixed">Mixed</option></select><small>This helps guests find suitable hostels and PGs.</small></label>}
               <label className="owner-form-field"><span>Description</span><textarea name="description" required minLength="10" maxLength="3000" rows="4" defaultValue={editingListing?.description || ''} placeholder="Describe the rooms, house rules, and what makes this stay useful." /></label>
               <div className="owner-form-row"><label className="owner-form-field"><span>Area / neighborhood</span><input name="area" required maxLength="100" defaultValue={editingListing?.location?.area || ''} placeholder="e.g. Yamuna Nagar" /></label><label className="owner-form-field"><span>City</span><input name="city" required maxLength="100" defaultValue={editingListing?.location?.city || ''} placeholder="e.g. Chengannur" /></label></div>
               <label className="owner-form-field"><span>Street address <small>Optional</small></span><textarea name="address" maxLength="300" rows="2" defaultValue={editingListing?.location?.address || ''} placeholder="Full address or directions" /></label>
               <div className="owner-form-row"><label className="owner-form-field"><span>Latitude <small>Optional · for map pin</small></span><input name="latitude" type="number" min="-90" max="90" step="any" defaultValue={editingListing?.location?.coordinates?.lat ?? ''} placeholder="e.g. 9.2667" /></label><label className="owner-form-field"><span>Longitude <small>Optional · for map pin</small></span><input name="longitude" type="number" min="-180" max="180" step="any" defaultValue={editingListing?.location?.coordinates?.lng ?? ''} placeholder="e.g. 76.6667" /></label></div>
               <p className="owner-form-note">To find coordinates, right-click the property location in Google Maps and copy the displayed numbers.</p>
-              <div className="owner-form-row owner-price-row"><label className="owner-form-field"><span>Price</span><span className="owner-price-input"><span>₹</span><input name="price" type="number" required min="1" max="10000000" step="1" defaultValue={editingListing?.price ?? ''} placeholder="5000" /></span></label><label className="owner-form-field"><span>Charge</span><select name="priceUnit" required defaultValue={editingListing?.priceUnit || 'month'}><option value="month">Per month</option><option value="night">Per night</option></select></label></div>
-              <label className="owner-form-field"><span>Rooms available</span><input name="availableRooms" type="number" required min="0" max="999" step="1" defaultValue={editingListing?.availableRooms ?? 3} /><small>Set to 0 or turn off availability when no rooms are open.</small></label>
+              <section className="owner-room-types" aria-label="Room types and prices"><div className="owner-room-types-heading"><div><b>Room types and availability</b><small>Add each room option guests can choose from.</small></div><button type="button" className="owner-add-room-type" onClick={() => setRoomTypes(current => current.length < 20 ? [...current, newRoomType()] : current)} disabled={roomTypes.length >= 20}>＋ Add room type</button></div>
+                {roomTypes.map((type, index) => <fieldset className="owner-room-type-card" key={type.key}><legend>Option {index + 1}</legend><div className="owner-form-row"><label className="owner-form-field"><span>Room type</span><input required maxLength="80" value={type.name} onChange={event => updateRoomType(setRoomTypes, index, 'name', event.target.value)} placeholder="e.g. 3 sharing" /></label><label className="owner-form-field"><span>Guests per room</span><input required type="number" min="1" max="20" value={type.capacity} onChange={event => updateRoomType(setRoomTypes, index, 'capacity', event.target.value)} /></label></div>
+                  <div className="owner-form-row owner-price-row"><label className="owner-form-field"><span>Price</span><span className="owner-price-input"><span>₹</span><input required type="number" min="1" max="10000000" step="1" value={type.price} onChange={event => updateRoomType(setRoomTypes, index, 'price', event.target.value)} placeholder="5000" /></span></label><label className="owner-form-field"><span>Charge</span><select required value={type.priceUnit} onChange={event => updateRoomType(setRoomTypes, index, 'priceUnit', event.target.value)}><option value="month">Per month</option><option value="night">Per night</option></select></label></div>
+                  <div className="owner-form-row"><label className="owner-form-field"><span>Rooms in this type</span><input required type="number" min="1" max="999" value={type.totalRooms} onChange={event => updateRoomType(setRoomTypes, index, 'totalRooms', event.target.value)} /></label><label className="owner-form-field"><span>Room facilities <small>Separate with commas</small></span><input value={type.amenities} onChange={event => updateRoomType(setRoomTypes, index, 'amenities', event.target.value)} placeholder="Attached bathroom, study table" /></label></div>
+                  {roomTypes.length > 1 && <button type="button" className="owner-remove-room-type" onClick={() => setRoomTypes(current => current.filter((_, row) => row !== index))}>Remove this type</button>}
+                </fieldset>)}
+                <p className="owner-form-note">Room counts create separate room maps for each type. The same monthly or nightly price period applies to every type in this listing.</p>
+              </section>
               <label className="owner-form-field"><span>Amenities <small>Separate with commas</small></span><input name="amenities" defaultValue={editingListing?.amenities?.join(', ') || ''} placeholder="Wi-Fi, Meals, Laundry" /></label>
               <label className="owner-form-field"><span>Photo URLs <small>One URL per line</small></span><textarea name="photos" rows="2" defaultValue={editingListing?.photos?.join('\n') || ''} placeholder="https://example.com/room.jpg" /></label>
               <label className="owner-form-field"><span>Contact phone <small>Shown on your listing</small></span><input name="contactPhone" type="tel" defaultValue={editingListing?.ownerDetails?.phones?.[0] || ''} placeholder="+91 98765 43210" /></label>
-              <label className="owner-availability"><input name="available" type="checkbox" defaultChecked={editingListing ? editingListing.available : true} /><span>Rooms are currently available</span></label>
+              <label className="owner-availability"><input name="available" type="checkbox" defaultChecked={editingListing ? editingListing.available : true} /><span>Accept room requests for this listing</span></label>
               {formError && <p className="owner-form-message error" role="alert">{formError}</p>}
               {success && <p className="owner-form-message success" role="status">{success}</p>}
               <div className="owner-form-actions"><button className="button owner-submit" type="submit" disabled={saving}>{saving ? (editingListing ? 'Saving…' : 'Publishing…') : (editingListing ? 'Save changes' : 'Publish listing')}<span>→</span></button>{editingListing && <button className="owner-cancel-edit" type="button" onClick={cancelEditing} disabled={saving}>Cancel</button>}</div>
@@ -157,7 +170,7 @@ export default function DashboardPage() {
             {!loadingListings && listingsError && <div className="owner-listing-state error">{listingsError}</div>}
             {!loadingListings && !listingsError && !listings.length && <div className="owner-empty-listings"><span>⌂</span><b>No listings yet</b><p>Publish your first stay and it will show up here.</p></div>}
             {!loadingListings && listings.map(listing => {
-              const listingDetails = <><small>{listing.typeLabel}</small><b>{listing.name}</b><span>{listing.location?.area}, {listing.location?.city}</span><span>{listing.available ? `${listing.availableRooms} rooms available` : 'Currently unavailable'}</span><span className={listing.isActive ? 'owner-status-active' : 'owner-status-inactive'}>{listing.isActive ? 'Active · visible publicly' : 'Inactive · hidden publicly'}</span></>
+              const listingDetails = <><small>{listing.typeLabel}</small><b>{listing.name}</b><span>{listing.location?.area}, {listing.location?.city}</span><span>{listing.available ? `${listing.availableRooms} rooms in layout` : 'Currently unavailable'}</span><span className={listing.isActive ? 'owner-status-active' : 'owner-status-inactive'}>{listing.isActive ? 'Active · visible publicly' : 'Inactive · hidden publicly'}</span></>
               const busy = deletingListingId === listing.id || changingStatusId === listing.id
               return <div className="owner-listing-row" key={listing.id}>
                 <img src={listing.photos?.[0] || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&w=240&q=75'} alt="" />
@@ -179,3 +192,11 @@ export default function DashboardPage() {
   )
 }
 
+
+function newRoomType() {
+  return { key: globalThis.crypto?.randomUUID?.().replaceAll('-', '').slice(0, 8) || `type${Math.random().toString(36).slice(2, 8)}`, name: '', price: '', priceUnit: 'month', capacity: 1, totalRooms: 1, amenities: '' }
+}
+
+function updateRoomType(setter, index, field, value) {
+  setter(current => current.map((item, row) => row === index ? { ...item, [field]: value } : item))
+}

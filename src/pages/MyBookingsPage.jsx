@@ -72,7 +72,8 @@ export default function MyBookingsPage() {
       {!loading && bookings.length > 0 && <div className="booking-list">{bookings.map(booking => {
         const property = booking.listing
         return <article className="booking-card" key={booking.id}>
-          <div className="booking-card-top"><div><span className="section-kicker">{property?.propertyType || 'STAY'}</span><h2>{property ? <Link to={'/listings/' + (property.id || property._id)}>{property.name}</Link> : 'Listing unavailable'}</h2><p>{dateLabel(booking.startDate)} – {dateLabel(booking.endDate)} · {booking.rooms} room{booking.rooms === 1 ? '' : 's'}</p></div><span className={'booking-status status-' + booking.status}>{statusLabels[booking.status] || booking.status}</span></div>
+          <div className="booking-card-top"><div><span className="section-kicker">{property?.propertyType || 'STAY'}</span><h2>{property ? <Link to={'/listings/' + (property.id || property._id)}>{property.name}</Link> : 'Listing unavailable'}</h2><p>{dateLabel(booking.startDate)} – {dateLabel(booking.endDate)} · {booking.roomTypeName ? booking.roomTypeName + ' · ' : ''}{booking.rooms} room{booking.rooms === 1 ? '' : 's'}</p></div><span className={'booking-status status-' + booking.status}>{statusLabels[booking.status] || booking.status}</span></div>
+          {booking.selectedRoomIds?.length > 0 && <p className="booking-student-note">Requested rooms: {booking.selectedRoomIds.map(roomId => formatRoomId(roomId, booking.roomTypeKey)).join(', ')}</p>}
           {booking.statusNote && <p className="booking-owner-note">Owner note: {booking.statusNote}</p>}
           {booking.message && <p className="booking-student-note">Your message: {booking.message}</p>}
           {booking.complaints?.map(complaint => <div className="student-complaint-update" key={complaint.id}><b>Complaint · {complaint.status.replace('_', ' ')}</b><p>{complaint.message}</p>{complaint.ownerResponse && <small>Owner response: {complaint.ownerResponse}</small>}</div>)}
@@ -90,3 +91,5 @@ export default function MyBookingsPage() {
 function dateLabel(value) {
   return new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+function formatRoomId(roomId, roomTypeKey) { return roomTypeKey && roomTypeKey !== 'legacy' ? `Room ${roomId.split('-').at(-1)}` : roomId }

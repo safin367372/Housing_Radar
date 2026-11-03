@@ -51,6 +51,18 @@ export async function getListings(req, res, next) {
       }
       filter.propertyType = req.query.propertyType
     }
+    if (req.query.guestPolicy) {
+      if (!['all', 'men', 'women', 'mixed'].includes(req.query.guestPolicy)) {
+        return res.status(400).json({ message: 'guestPolicy must be all, men, women, or mixed.' })
+      }
+      filter.guestPolicy = req.query.guestPolicy
+    }
+    if (typeof req.query.roomType === 'string' && req.query.roomType.trim()) {
+      const pattern = new RegExp(escapeRegex(req.query.roomType.trim().slice(0, 80)), 'i')
+      filter.$and = (filter.$and || []).concat([{
+        $or: [{ roomType: pattern }, { 'roomTypes.name': pattern }],
+      }])
+    }
     if (req.query.rateUnit) {
       if (!['night', 'month'].includes(req.query.rateUnit)) {
         return res.status(400).json({ message: 'rateUnit must be night or month.' })
@@ -82,7 +94,7 @@ export async function getListings(req, res, next) {
     }
 
     const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1)
-    const limit = Math.min(8, Math.max(4, Number.parseInt(req.query.limit, 10) || 6))
+    const limit = Math.min(24, Math.max(1, Number.parseInt(req.query.limit, 10) || 24))
     const sortOptions = {
       newest: { createdAt: -1 },
       priceAsc: { price: 1 },
